@@ -1,0 +1,77 @@
+===============================================================
+ UNIVERSITY PAYROLL MANAGEMENT SYSTEM (UPMS)
+ Setup & Run Instructions
+===============================================================
+
+REQUIREMENTS:
+  - Java JDK 8 or higher
+  - Oracle 10g XE (or any Oracle DB)
+  - Oracle JDBC Driver: ojdbc14.jar
+
+---------------------------------------------------------------
+STEP 1: Set up the Oracle Database
+---------------------------------------------------------------
+1. Open Oracle Application Express or SQL*Plus
+2. Log in as your project user (e.g., PROJECT or SCOTT)
+3. Run the SQL scripts in order:
+     a) sql\create_tables.sql   — Creates all 10 tables
+     b) sql\insert_data.sql     — Inserts sample data
+
+---------------------------------------------------------------
+STEP 2: Configure the Database Connection
+---------------------------------------------------------------
+Open this file:
+  src\upms\db\DBConnection.java
+
+Change these 3 lines to match your Oracle setup:
+  private static final String URL      = "jdbc:oracle:thin:@localhost:1521:XE";
+  private static final String USER     = "PROJECT";
+  private static final String PASSWORD = "project123";
+
+Common Oracle XE URL: jdbc:oracle:thin:@localhost:1521:XE
+Common Oracle ORCL:   jdbc:oracle:thin:@localhost:1521:ORCL
+
+---------------------------------------------------------------
+STEP 3: Add the Oracle JDBC Driver
+---------------------------------------------------------------
+Copy ojdbc14.jar into the lib\ folder:
+  lib\ojdbc14.jar
+
+You can find ojdbc14.jar in your Oracle 10g installation:
+  C:\oraclexe\app\oracle\product\10.2.0\server\jdbc\lib\ojdbc14.jar
+
+---------------------------------------------------------------
+STEP 4: Compile and Run
+---------------------------------------------------------------
+Double-click compile.bat  OR  run in Command Prompt:
+  cd "C:\Users\Shamiul Islam\Desktop\University-Payroll-Management-System"
+  compile.bat
+
+To run again after compilation:
+  run.bat
+
+---------------------------------------------------------------
+DEFAULT LOGIN CREDENTIALS
+---------------------------------------------------------------
+  Administrator:   admin     / admin123
+  Accountant:      accountant / acc123
+
+---------------------------------------------------------------
+PROJECT STRUCTURE
+---------------------------------------------------------------
+  src\upms\
+    Main.java                   — Application entry point
+    db\DBConnection.java        — Oracle JDBC connection
+    model\*.java                — Data models (8 entities)
+    dao\*.java                  — Database operations (8 DAOs)
+    ui\LoginFrame.java          — Login screen
+    ui\AdminDashboard.java      — Admin interface
+    ui\AccountantDashboard.java — Accountant interface
+    ui\panels\*.java            — Module panels (8 panels)
+    ui\util\Theme.java          — UI styling
+
+  sql\
+    create_tables.sql           — DDL for all 10 tables
+    insert_data.sql             — Sample data
+
+===============================================================
