@@ -52,11 +52,10 @@ public class EmployeePanel extends JPanel {
 
         // Search bar
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        searchPanel.setBackground(Theme.CONTENT_BG);
-        searchPanel.setBorder(new EmptyBorder(0, 0, 12, 0));
+        searchPanel.setBackground(Color.WHITE);
+        searchPanel.setBorder(new EmptyBorder(0, 0, 10, 0));
         JTextField search = Theme.styledField();
         search.setPreferredSize(new Dimension(280, 34));
-        search.putClientProperty("JTextField.placeholderText", "Search by name or ID...");
         JButton searchBtn = Theme.primaryButton("Search");
         searchBtn.addActionListener(e -> filterTable(search.getText().trim()));
         search.addActionListener(e -> filterTable(search.getText().trim()));
@@ -65,7 +64,6 @@ public class EmployeePanel extends JPanel {
         clearBtn.addActionListener(e -> { search.setText(""); refresh(); });
         searchPanel.add(search); searchPanel.add(Box.createHorizontalStrut(8));
         searchPanel.add(searchBtn); searchPanel.add(Box.createHorizontalStrut(4)); searchPanel.add(clearBtn);
-        add(searchPanel, BorderLayout.CENTER);
 
         // Table
         model = new DefaultTableModel(COLS, 0) { public boolean isCellEditable(int r, int c) { return false; } };
@@ -77,12 +75,11 @@ public class EmployeePanel extends JPanel {
         scroll.setBorder(new LineBorder(Theme.BORDER, 1, true));
         scroll.getViewport().setBackground(Color.WHITE);
 
+        // Card holds search bar + table together
         JPanel tableCard = Theme.cardPanel(null);
         tableCard.add(searchPanel, BorderLayout.NORTH);
         tableCard.add(scroll, BorderLayout.CENTER);
 
-        // Replace center with tableCard
-        remove(getComponent(1)); // remove searchPanel from CENTER
         add(tableCard, BorderLayout.CENTER);
 
         refresh();

@@ -1,14 +1,18 @@
 @echo off
 echo ============================================
 echo  University Payroll Management System
-echo  Build Script
+echo  Build Script (MySQL / XAMPP)
 echo ============================================
 
-set LIB=lib\ojdbc14.jar
+set LIB=lib\mysql-connector.jar
 set SRC=src
 set OUT=out
 
-if not exist %OUT% mkdir %OUT%
+if exist %OUT% (
+    echo Cleaning old .class files...
+    rmdir /s /q %OUT%
+)
+mkdir %OUT%
 
 echo.
 echo Compiling Java sources...
@@ -54,6 +58,6 @@ if %ERRORLEVEL% == 0 (
 ) else (
     echo.
     echo Compilation FAILED. Check errors above.
-    echo Make sure ojdbc14.jar is in the lib\ folder.
+    echo Make sure mysql-connector.jar is in the lib\ folder.
     pause
 )

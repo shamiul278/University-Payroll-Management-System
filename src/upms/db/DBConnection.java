@@ -3,16 +3,15 @@ package upms.db;
 import java.sql.*;
 
 public class DBConnection {
-    // Change these to match your Oracle 10g setup
-    private static final String URL      = "jdbc:oracle:thin:@localhost:1521:XE";
-    private static final String USER     = "PROJECT";
-    private static final String PASSWORD = "project123";
+    private static final String URL      = "jdbc:mysql://localhost:3306/upms?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+    private static final String USER     = "root";
+    private static final String PASSWORD = "";
 
     static {
         try {
-            Class.forName("oracle.jdbc.driver.OracleDriver");
+            Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
-            System.err.println("Oracle JDBC Driver not found. Add ojdbc14.jar to classpath.");
+            System.err.println("MySQL JDBC Driver not found. Add mysql-connector.jar to classpath.");
         }
     }
 

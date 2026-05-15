@@ -1,2 +1,2 @@
 @echo off
-java -cp "out;lib\ojdbc14.jar" upms.Main
+java -cp "out;lib\mysql-connector.jar" upms.Main
