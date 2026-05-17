@@ -44,7 +44,7 @@ public class DepartmentDAO {
             ps = c.prepareStatement("INSERT INTO Department VALUES (?,?,?,?)");
             ps.setString(1, d.getDeptId()); ps.setString(2, d.getDeptName());
             ps.setString(3, d.getBuilding()); ps.setString(4, d.getContactNo());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -57,7 +57,7 @@ public class DepartmentDAO {
             ps = c.prepareStatement("UPDATE Department SET dept_name=?,building=?,contact_no=? WHERE dept_id=?");
             ps.setString(1, d.getDeptName()); ps.setString(2, d.getBuilding());
             ps.setString(3, d.getContactNo()); ps.setString(4, d.getDeptId());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -67,11 +67,39 @@ public class DepartmentDAO {
         Connection c = null; PreparedStatement ps = null;
         try {
             c = DBConnection.getConnection();
+            c.setAutoCommit(false);
+
+            ps = c.prepareStatement("UPDATE Employee SET dept_id=NULL WHERE dept_id=?");
+            ps.setString(1, id);
+            ps.executeUpdate();
+            ps.close();
+
             ps = c.prepareStatement("DELETE FROM Department WHERE dept_id=?");
-            ps.setString(1, id); ps.executeUpdate(); c.commit();
-            return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
-        finally { DBConnection.close(c, ps); }
+            ps.setString(1, id);
+            int rows = ps.executeUpdate();
+            c.commit();
+            return rows > 0;
+        } catch (SQLException e) {
+            try { if (c != null) c.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            e.printStackTrace();
+            return false;
+        } finally {
+            try { if (c != null) c.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
+            DBConnection.close(c, ps);
+        }
+    }
+
+    public int countEmployees(String deptId) {
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
+        try {
+            c = DBConnection.getConnection();
+            ps = c.prepareStatement("SELECT COUNT(*) FROM Employee WHERE dept_id=?");
+            ps.setString(1, deptId);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        finally { DBConnection.close(c, ps, rs); }
+        return 0;
     }
 
     public String nextId() {

@@ -14,6 +14,7 @@ public class DepartmentPanel extends JPanel {
     private final DepartmentDAO dao = new DepartmentDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Dept ID", "Department Name", "Building", "Contact No"};
 
     public DepartmentPanel() {
@@ -61,6 +62,15 @@ public class DepartmentPanel extends JPanel {
             model.addRow(new Object[]{d.getDeptId(), d.getDeptName(), d.getBuilding(), d.getContactNo()});
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a department to edit."); return; }
@@ -71,10 +81,21 @@ public class DepartmentPanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a department to delete."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int confirm = JOptionPane.showConfirmDialog(this, "Delete department " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
+        int employeeCount = dao.countEmployees(id);
+        String message = "Delete department " + id + "?";
+        if (employeeCount == 1) message += "\n1 employee will become unassigned.";
+        else if (employeeCount > 1) message += "\n" + employeeCount + " employees will become unassigned.";
+
+        int confirm = JOptionPane.showConfirmDialog(this, message, "Confirm Delete", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
-            if (dao.delete(id)) { JOptionPane.showMessageDialog(this, "Deleted successfully."); refresh(); }
-            else JOptionPane.showMessageDialog(this, "Cannot delete (has employees).", "Error", JOptionPane.ERROR_MESSAGE);
+            if (dao.delete(id)) {
+                String success = "Department deleted successfully.";
+                if (employeeCount == 1) success += "\n1 employee is now unassigned.";
+                else if (employeeCount > 1) success += "\n" + employeeCount + " employees are now unassigned.";
+                JOptionPane.showMessageDialog(this, success);
+                notifyDataChanged();
+            }
+            else JOptionPane.showMessageDialog(this, "Unable to delete department.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -120,8 +141,12 @@ public class DepartmentPanel extends JPanel {
             Department d = new Department(idF.getText().trim(), nameF.getText().trim(),
                 bldgF.getText().trim(), contF.getText().trim());
             boolean ok = existing == null ? dao.insert(d) : dao.update(d);
-            if (ok) { JOptionPane.showMessageDialog(dlg, "Saved."); dlg.dispose(); refresh(); }
-            else JOptionPane.showMessageDialog(dlg, "Failed to save.", "Error", JOptionPane.ERROR_MESSAGE);
+            if (ok) {
+                JOptionPane.showMessageDialog(dlg, existing == null ? "Department added successfully." : "Department updated successfully.");
+                dlg.dispose();
+                notifyDataChanged();
+            }
+            else JOptionPane.showMessageDialog(dlg, "Unable to save department.", "Error", JOptionPane.ERROR_MESSAGE);
         });
         cancel.addActionListener(e -> dlg.dispose());
 

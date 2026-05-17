@@ -42,7 +42,7 @@ public class BonusDAO {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("INSERT INTO Bonus VALUES (?,?,?)");
             ps.setString(1, b.getBonusId()); ps.setDouble(2, b.getAmount()); ps.setString(3, b.getType());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -54,7 +54,7 @@ public class BonusDAO {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("UPDATE Bonus SET amount=?,type=? WHERE bonus_id=?");
             ps.setDouble(1, b.getAmount()); ps.setString(2, b.getType()); ps.setString(3, b.getBonusId());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -64,15 +64,35 @@ public class BonusDAO {
         Connection c = null; PreparedStatement ps = null;
         try {
             c = DBConnection.getConnection();
+            c.setAutoCommit(false);
             // Remove from junction table first
             ps = c.prepareStatement("DELETE FROM Payroll_Bonus WHERE bonus_id=?");
             ps.setString(1, id); ps.executeUpdate();
             ps.close();
             ps = c.prepareStatement("DELETE FROM Bonus WHERE bonus_id=?");
-            ps.setString(1, id); ps.executeUpdate(); c.commit();
-            return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
-        finally { DBConnection.close(c, ps); }
+            ps.setString(1, id); int rows = ps.executeUpdate(); c.commit();
+            return rows > 0;
+        } catch (SQLException e) {
+            try { if (c != null) c.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            e.printStackTrace(); return false;
+        }
+        finally {
+            try { if (c != null) c.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
+            DBConnection.close(c, ps);
+        }
+    }
+
+    public int countPayrollLinks(String bonusId) {
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
+        try {
+            c = DBConnection.getConnection();
+            ps = c.prepareStatement("SELECT COUNT(*) FROM Payroll_Bonus WHERE bonus_id=?");
+            ps.setString(1, bonusId);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        finally { DBConnection.close(c, ps, rs); }
+        return 0;
     }
 
     public boolean linkToPayroll(String payrollId, String bonusId) {
@@ -81,7 +101,7 @@ public class BonusDAO {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("INSERT INTO Payroll_Bonus VALUES (?,?)");
             ps.setString(1, payrollId); ps.setString(2, bonusId);
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }

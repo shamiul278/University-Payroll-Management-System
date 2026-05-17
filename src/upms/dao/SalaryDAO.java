@@ -43,7 +43,7 @@ public class SalaryDAO {
             ps = c.prepareStatement("INSERT INTO Salary VALUES (?,?,?,?)");
             ps.setString(1, s.getSalaryId()); ps.setDouble(2, s.getBasicSalary());
             ps.setDouble(3, s.getAllowance()); ps.setString(4, s.getEmpId());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -56,8 +56,8 @@ public class SalaryDAO {
             ps = c.prepareStatement("UPDATE Salary SET basic_salary=?,allowance=? WHERE emp_id=?");
             ps.setDouble(1, s.getBasicSalary()); ps.setDouble(2, s.getAllowance());
             ps.setString(3, s.getEmpId());
-            ps.executeUpdate(); c.commit();
-            return true;
+            int rows = ps.executeUpdate();
+            return rows > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
     }
@@ -67,10 +67,23 @@ public class SalaryDAO {
         try {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("DELETE FROM Salary WHERE salary_id=?");
-            ps.setString(1, id); ps.executeUpdate(); c.commit();
-            return true;
+            ps.setString(1, id); int rows = ps.executeUpdate();
+            return rows > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
+    }
+
+    public int countPayrollsForEmployee(String empId) {
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
+        try {
+            c = DBConnection.getConnection();
+            ps = c.prepareStatement("SELECT COUNT(*) FROM Payroll WHERE emp_id=?");
+            ps.setString(1, empId);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        finally { DBConnection.close(c, ps, rs); }
+        return 0;
     }
 
     public String nextId() {

@@ -3,7 +3,7 @@ package upms.db;
 import java.sql.*;
 
 public class DBConnection {
-    private static final String URL      = "jdbc:mysql://localhost:3306/upms?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+    private static final String URL      = "jdbc:mysql://localhost:3306/upms";
     private static final String USER     = "root";
     private static final String PASSWORD = "";
 

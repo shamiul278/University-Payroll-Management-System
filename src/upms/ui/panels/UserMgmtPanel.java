@@ -17,6 +17,7 @@ public class UserMgmtPanel extends JPanel {
     private final EmployeeDAO empDAO = new EmployeeDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"User ID","Username","Role","Employee ID"};
 
     public UserMgmtPanel() {
@@ -63,6 +64,15 @@ public class UserMgmtPanel extends JPanel {
             model.addRow(new Object[]{u.getUserId(), u.getUsername(), u.getRole(), u.getEmpId()});
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a user to edit."); return; }
@@ -74,8 +84,11 @@ public class UserMgmtPanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a user to delete."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int c = JOptionPane.showConfirmDialog(this, "Delete user " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
-        if (c == JOptionPane.YES_OPTION && userDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Deleted."); refresh(); }
+        int c = JOptionPane.showConfirmDialog(this, "Delete user " + id + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (c == JOptionPane.YES_OPTION) {
+            if (userDAO.delete(id)) { JOptionPane.showMessageDialog(this, "User deleted successfully."); notifyDataChanged(); }
+            else JOptionPane.showMessageDialog(this, userDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void showForm(User existing) {
@@ -90,8 +103,15 @@ public class UserMgmtPanel extends JPanel {
         gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(8, 4, 8, 4);
 
         List<Employee> emps = empDAO.getAll();
-        String[] empIds   = emps.stream().map(Employee::getEmpId).toArray(String[]::new);
-        String[] empNames = emps.stream().map(e -> e.getEmpId() + " - " + e.getName()).toArray(String[]::new);
+        String[] empIds = new String[emps.size() + 1];
+        String[] empNames = new String[emps.size() + 1];
+        empIds[0] = null;
+        empNames[0] = "No linked employee";
+        for (int i = 0; i < emps.size(); i++) {
+            Employee emp = emps.get(i);
+            empIds[i + 1] = emp.getEmpId();
+            empNames[i + 1] = emp.getEmpId() + " - " + emp.getName();
+        }
 
         JTextField idF   = Theme.styledField();
         JTextField userF = Theme.styledField();
@@ -105,7 +125,8 @@ public class UserMgmtPanel extends JPanel {
             userF.setText(existing.getUsername());
             passF.setText(existing.getPassword());
             roleC.setSelectedItem(existing.getRole());
-            for (int i = 0; i < empIds.length; i++) if (empIds[i].equals(existing.getEmpId())) { empC.setSelectedIndex(i); break; }
+            empC.setSelectedIndex(0);
+            for (int i = 1; i < empIds.length; i++) if (empIds[i].equals(existing.getEmpId())) { empC.setSelectedIndex(i); break; }
         } else {
             idF.setText(userDAO.nextId()); idF.setEditable(false);
         }
@@ -125,12 +146,26 @@ public class UserMgmtPanel extends JPanel {
         p.add(btnRow, gc);
 
         save.addActionListener(e -> {
-            User u = new User(idF.getText().trim(), userF.getText().trim(),
-                new String(passF.getPassword()), (String)roleC.getSelectedItem(),
+            String username = userF.getText().trim();
+            String password = new String(passF.getPassword());
+            if (username.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg, "Username is required.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (password.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg, "Password is required.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            User u = new User(idF.getText().trim(), username,
+                password, (String)roleC.getSelectedItem(),
                 empIds[empC.getSelectedIndex()]);
             boolean ok = existing == null ? userDAO.insert(u) : userDAO.update(u);
-            if (ok) { JOptionPane.showMessageDialog(dlg, "Saved."); dlg.dispose(); refresh(); }
-            else JOptionPane.showMessageDialog(dlg, "Failed. Username may already exist.", "Error", JOptionPane.ERROR_MESSAGE);
+            if (ok) {
+                JOptionPane.showMessageDialog(dlg, existing == null ? "User added successfully." : "User updated successfully.");
+                dlg.dispose();
+                notifyDataChanged();
+            }
+            else JOptionPane.showMessageDialog(dlg, userDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         });
         cancel.addActionListener(e -> dlg.dispose());
         dlg.setContentPane(p); dlg.setVisible(true);

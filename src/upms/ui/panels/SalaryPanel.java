@@ -17,6 +17,7 @@ public class SalaryPanel extends JPanel {
     private final EmployeeDAO empDAO = new EmployeeDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Salary ID","Employee ID","Employee Name","Basic Salary","Allowance","Gross Pay"};
 
     public SalaryPanel() {
@@ -76,25 +77,45 @@ public class SalaryPanel extends JPanel {
         }
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a record to edit."); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a salary record to edit."); return; }
         String empId = (String) model.getValueAt(row, 1);
         showForm(salDAO.getByEmpId(empId));
     }
 
     private void deleteSelected() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a record to remove."); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a salary record to remove."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int confirm = JOptionPane.showConfirmDialog(this, "Remove salary record " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
+        String empId = (String) model.getValueAt(row, 1);
+        int payrollCount = salDAO.countPayrollsForEmployee(empId);
+        String message = "Remove salary record " + id + "?";
+        if (payrollCount == 1) message += "\nThis employee has 1 payroll record whose total may be affected.";
+        else if (payrollCount > 1) message += "\nThis employee has " + payrollCount + " payroll records whose totals may be affected.";
+        int confirm = JOptionPane.showConfirmDialog(this, message, "Confirm Remove", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
-            if (salDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Removed."); refresh(); }
-            else JOptionPane.showMessageDialog(this, "Failed to remove.", "Error", JOptionPane.ERROR_MESSAGE);
+            if (salDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Salary record removed successfully."); notifyDataChanged(); }
+            else JOptionPane.showMessageDialog(this, "Unable to remove salary record.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void showForm(Salary existing) {
+        List<Employee> emps = empDAO.getAll();
+        if (emps.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Add an employee before assigning salary.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
             existing == null ? "Assign Salary" : "Edit Salary", true);
         dlg.setSize(420, 280);
@@ -105,7 +126,6 @@ public class SalaryPanel extends JPanel {
         GridBagConstraints gc = new GridBagConstraints();
         gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(8, 4, 8, 4);
 
-        List<Employee> emps = empDAO.getAll();
         String[] empIds = emps.stream().map(Employee::getEmpId).toArray(String[]::new);
         String[] empNames = emps.stream().map(e -> e.getEmpId() + " - " + e.getName()).toArray(String[]::new);
 
@@ -144,9 +164,21 @@ public class SalaryPanel extends JPanel {
                     Double.parseDouble(basicF.getText().trim()),
                     Double.parseDouble(allowF.getText().trim()),
                     empIds[empC.getSelectedIndex()]);
+                if (s.getBasicSalary() < 0 || s.getAllowance() < 0) {
+                    JOptionPane.showMessageDialog(dlg, "Basic salary and allowance cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
                 boolean ok = existing == null ? salDAO.insert(s) : salDAO.update(s);
-                if (ok) { JOptionPane.showMessageDialog(dlg, "Saved."); dlg.dispose(); refresh(); }
-                else JOptionPane.showMessageDialog(dlg, "Failed.", "Error", JOptionPane.ERROR_MESSAGE);
+                if (ok) {
+                    String success = existing == null ? "Salary assigned successfully." : "Salary updated successfully.";
+                    int payrollCount = salDAO.countPayrollsForEmployee(s.getEmpId());
+                    if (payrollCount == 1) success += "\n1 payroll total was updated.";
+                    else if (payrollCount > 1) success += "\n" + payrollCount + " payroll totals were updated.";
+                    JOptionPane.showMessageDialog(dlg, success);
+                    dlg.dispose();
+                    notifyDataChanged();
+                }
+                else JOptionPane.showMessageDialog(dlg, "Unable to save salary record.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dlg, "Enter valid numeric values.", "Error", JOptionPane.ERROR_MESSAGE);
             }

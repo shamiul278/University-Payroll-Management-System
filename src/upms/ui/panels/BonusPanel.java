@@ -13,6 +13,7 @@ public class BonusPanel extends JPanel {
     private final BonusDAO dao = new BonusDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Bonus ID","Type","Amount"};
 
     public BonusPanel() {
@@ -62,6 +63,15 @@ public class BonusPanel extends JPanel {
             model.addRow(new Object[]{b.getBonusId(), b.getType(), String.format("%.2f", b.getAmount())});
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a bonus to edit."); return; }
@@ -73,8 +83,21 @@ public class BonusPanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a bonus to delete."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int c = JOptionPane.showConfirmDialog(this, "Delete bonus " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
-        if (c == JOptionPane.YES_OPTION && dao.delete(id)) { JOptionPane.showMessageDialog(this, "Deleted."); refresh(); }
+        int linkedPayrolls = dao.countPayrollLinks(id);
+        String message = "Delete bonus " + id + "?";
+        if (linkedPayrolls == 1) message += "\nThis bonus will be removed from 1 payroll record.";
+        else if (linkedPayrolls > 1) message += "\nThis bonus will be removed from " + linkedPayrolls + " payroll records.";
+        int c = JOptionPane.showConfirmDialog(this, message, "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (c == JOptionPane.YES_OPTION) {
+            if (dao.delete(id)) {
+                String success = "Bonus deleted successfully.";
+                if (linkedPayrolls == 1) success += "\n1 payroll total was updated.";
+                else if (linkedPayrolls > 1) success += "\n" + linkedPayrolls + " payroll totals were updated.";
+                JOptionPane.showMessageDialog(this, success);
+                notifyDataChanged();
+            }
+            else JOptionPane.showMessageDialog(this, "Unable to delete bonus.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void showForm(Bonus existing) {
@@ -116,10 +139,25 @@ public class BonusPanel extends JPanel {
 
         save.addActionListener(e -> {
             try {
-                Bonus b = new Bonus(idF.getText().trim(), Double.parseDouble(amtF.getText().trim()), (String)typeC.getSelectedItem());
+                double amount = Double.parseDouble(amtF.getText().trim());
+                if (amount <= 0) {
+                    JOptionPane.showMessageDialog(dlg, "Bonus amount must be greater than zero.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                Bonus b = new Bonus(idF.getText().trim(), amount, (String)typeC.getSelectedItem());
                 boolean ok = existing == null ? dao.insert(b) : dao.update(b);
-                if (ok) { JOptionPane.showMessageDialog(dlg, "Saved."); dlg.dispose(); refresh(); }
-                else JOptionPane.showMessageDialog(dlg, "Failed.", "Error", JOptionPane.ERROR_MESSAGE);
+                if (ok) {
+                    String success = existing == null ? "Bonus added successfully." : "Bonus updated successfully.";
+                    if (existing != null) {
+                        int linkedPayrolls = dao.countPayrollLinks(existing.getBonusId());
+                        if (linkedPayrolls == 1) success += "\n1 linked payroll total was updated.";
+                        else if (linkedPayrolls > 1) success += "\n" + linkedPayrolls + " linked payroll totals were updated.";
+                    }
+                    JOptionPane.showMessageDialog(dlg, success);
+                    dlg.dispose();
+                    notifyDataChanged();
+                }
+                else JOptionPane.showMessageDialog(dlg, "Unable to save bonus.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dlg, "Enter a valid amount.", "Error", JOptionPane.ERROR_MESSAGE);
             }

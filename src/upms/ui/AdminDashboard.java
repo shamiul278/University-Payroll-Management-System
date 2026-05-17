@@ -31,6 +31,7 @@ public class AdminDashboard extends JFrame {
         attendancePanel = new AttendancePanel();
         userMgmtPanel  = new UserMgmtPanel();
         reportPanel    = new ReportPanel();
+        wireDataRefresh();
 
         setTitle("UPMS - Administrator Dashboard");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -38,6 +39,23 @@ public class AdminDashboard extends JFrame {
         setLocationRelativeTo(null);
         Theme.setLookAndFeel();
         initUI();
+    }
+
+    private void wireDataRefresh() {
+        employeePanel.setDataChangeListener(this::refreshLoadedTables);
+        departmentPanel.setDataChangeListener(this::refreshLoadedTables);
+        salaryPanel.setDataChangeListener(this::refreshLoadedTables);
+        attendancePanel.setDataChangeListener(this::refreshLoadedTables);
+        userMgmtPanel.setDataChangeListener(this::refreshLoadedTables);
+    }
+
+    private void refreshLoadedTables() {
+        employeePanel.refresh();
+        departmentPanel.refresh();
+        salaryPanel.refresh();
+        attendancePanel.refresh();
+        userMgmtPanel.refresh();
+        reportPanel.refresh();
     }
 
     private void initUI() {

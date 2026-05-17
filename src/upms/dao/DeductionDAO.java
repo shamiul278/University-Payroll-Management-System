@@ -42,7 +42,7 @@ public class DeductionDAO {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("INSERT INTO Deduction VALUES (?,?,?)");
             ps.setString(1, d.getDeductionId()); ps.setDouble(2, d.getAmount()); ps.setString(3, d.getReason());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -54,7 +54,7 @@ public class DeductionDAO {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("UPDATE Deduction SET amount=?,reason=? WHERE deduction_id=?");
             ps.setDouble(1, d.getAmount()); ps.setString(2, d.getReason()); ps.setString(3, d.getDeductionId());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
@@ -64,13 +64,33 @@ public class DeductionDAO {
         Connection c = null; PreparedStatement ps = null;
         try {
             c = DBConnection.getConnection();
+            c.setAutoCommit(false);
             ps = c.prepareStatement("DELETE FROM Payroll_Deduction WHERE deduction_id=?");
             ps.setString(1, id); ps.executeUpdate(); ps.close();
             ps = c.prepareStatement("DELETE FROM Deduction WHERE deduction_id=?");
-            ps.setString(1, id); ps.executeUpdate(); c.commit();
-            return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
-        finally { DBConnection.close(c, ps); }
+            ps.setString(1, id); int rows = ps.executeUpdate(); c.commit();
+            return rows > 0;
+        } catch (SQLException e) {
+            try { if (c != null) c.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            e.printStackTrace(); return false;
+        }
+        finally {
+            try { if (c != null) c.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
+            DBConnection.close(c, ps);
+        }
+    }
+
+    public int countPayrollLinks(String deductionId) {
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
+        try {
+            c = DBConnection.getConnection();
+            ps = c.prepareStatement("SELECT COUNT(*) FROM Payroll_Deduction WHERE deduction_id=?");
+            ps.setString(1, deductionId);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        finally { DBConnection.close(c, ps, rs); }
+        return 0;
     }
 
     public boolean linkToPayroll(String payrollId, String deductionId) {
@@ -79,7 +99,7 @@ public class DeductionDAO {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("INSERT INTO Payroll_Deduction VALUES (?,?)");
             ps.setString(1, payrollId); ps.setString(2, deductionId);
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }

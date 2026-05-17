@@ -19,6 +19,7 @@ public class AttendancePanel extends JPanel {
     private final EmployeeDAO empDAO = new EmployeeDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Attendance ID","Employee ID","Employee Name","Date","Status"};
 
     public AttendancePanel() {
@@ -85,19 +86,31 @@ public class AttendancePanel extends JPanel {
         }
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a record to update."); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Select an attendance record to update."); return; }
         String id = (String) model.getValueAt(row, 0);
         for (Attendance a : attDAO.getAll()) if (a.getAttendanceId().equals(id)) { showForm(a); return; }
     }
 
     private void deleteSelected() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a record to delete."); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Select an attendance record to delete."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int c = JOptionPane.showConfirmDialog(this, "Delete record " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
-        if (c == JOptionPane.YES_OPTION && attDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Deleted."); refresh(); }
+        int c = JOptionPane.showConfirmDialog(this, "Delete attendance record " + id + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (c == JOptionPane.YES_OPTION) {
+            if (attDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Attendance record deleted successfully."); notifyDataChanged(); }
+            else JOptionPane.showMessageDialog(this, "Unable to delete attendance record.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void showForm(Attendance existing) {
@@ -151,8 +164,12 @@ public class AttendancePanel extends JPanel {
                 Attendance a = new Attendance(idF.getText().trim(), d,
                     (String) statusC.getSelectedItem(), empIds[empC.getSelectedIndex()]);
                 boolean ok = existing == null ? attDAO.insert(a) : attDAO.update(a);
-                if (ok) { JOptionPane.showMessageDialog(dlg, "Saved."); dlg.dispose(); refresh(); }
-                else JOptionPane.showMessageDialog(dlg, "Failed.", "Error", JOptionPane.ERROR_MESSAGE);
+                if (ok) {
+                    JOptionPane.showMessageDialog(dlg, existing == null ? "Attendance marked successfully." : "Attendance updated successfully.");
+                    dlg.dispose();
+                    notifyDataChanged();
+                }
+                else JOptionPane.showMessageDialog(dlg, "Unable to save attendance record.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dlg, "Invalid date format (yyyy-MM-dd).", "Error", JOptionPane.ERROR_MESSAGE);
             }

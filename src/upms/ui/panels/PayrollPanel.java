@@ -20,6 +20,7 @@ public class PayrollPanel extends JPanel {
     private final DeductionDAO dedDAO = new DeductionDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Payroll ID","Employee ID","Name","Month","Generated Date","Total Salary","Status"};
 
     public PayrollPanel() {
@@ -95,9 +96,18 @@ public class PayrollPanel extends JPanel {
         }
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void generatePayroll() {
         List<Employee> emps = empDAO.getAll();
-        if (emps.isEmpty()) { JOptionPane.showMessageDialog(this, "No employees found."); return; }
+        if (emps.isEmpty()) { JOptionPane.showMessageDialog(this, "No employees are available for payroll generation."); return; }
 
         String[] empItems = emps.stream().map(e -> e.getEmpId() + " - " + e.getName()).toArray(String[]::new);
         JComboBox<String> empC = new JComboBox<>(empItems);
@@ -117,49 +127,51 @@ public class PayrollPanel extends JPanel {
 
         int res = JOptionPane.showConfirmDialog(this, form, "Generate Payroll", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (res != JOptionPane.OK_OPTION) return;
+        String month = monthF.getText().trim();
+        if (month.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Payroll month is required.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         String empId = emps.get(empC.getSelectedIndex()).getEmpId();
         Salary sal = salDAO.getByEmpId(empId);
-        if (sal == null) { JOptionPane.showMessageDialog(this, "No salary configured for this employee.", "Error", JOptionPane.ERROR_MESSAGE); return; }
+        if (sal == null) { JOptionPane.showMessageDialog(this, "Cannot generate payroll because this employee has no salary record.", "Error", JOptionPane.ERROR_MESSAGE); return; }
 
-        double total = sal.getGross();
-
-        // Add bonus
         String selectedBonus = (String) bonusC.getSelectedItem();
         String bonusId = null;
         if (selectedBonus != null && !selectedBonus.equals("None")) {
             bonusId = selectedBonus.split(" - ")[0];
-            for (Bonus b : bonDAO.getAll()) if (b.getBonusId().equals(bonusId)) { total += b.getAmount(); break; }
         }
 
-        // Subtract deduction
         String selectedDed = (String) dedC.getSelectedItem();
         String dedId = null;
         if (selectedDed != null && !selectedDed.equals("None")) {
             dedId = selectedDed.split(" - ")[0];
-            for (Deduction d : dedDAO.getAll()) if (d.getDeductionId().equals(dedId)) { total -= d.getAmount(); break; }
         }
 
         String payrollId = payDAO.nextId();
-        Payroll p = new Payroll(payrollId, monthF.getText().trim(), new Date(), "Pending", total, empId);
-        if (!payDAO.insert(p)) { JOptionPane.showMessageDialog(this, "Failed to create payroll.", "Error", JOptionPane.ERROR_MESSAGE); return; }
-
-        if (bonusId != null) bonDAO.linkToPayroll(payrollId, bonusId);
-        if (dedId   != null) dedDAO.linkToPayroll(payrollId, dedId);
+        PayrollDAO.GenerateResult generated = payDAO.generatePayroll(payrollId, month, empId, bonusId, dedId);
+        if (generated == null) {
+            JOptionPane.showMessageDialog(this, payDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         JOptionPane.showMessageDialog(this, String.format("Payroll %s generated!\nEmployee: %s\nMonth: %s\nTotal: %.2f",
-            payrollId, empId, monthF.getText(), total));
-        refresh();
+            generated.getPayrollId(), empId, monthF.getText(), generated.getTotalSalary()));
+        notifyDataChanged();
     }
 
     private void updateStatus() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a payroll record."); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Select a payroll record to update."); return; }
         String id = (String) model.getValueAt(row, 0);
         String[] statuses = {"Pending","Processed","Disbursed"};
         String chosen = (String) JOptionPane.showInputDialog(this, "Select new status:", "Update Status",
             JOptionPane.PLAIN_MESSAGE, null, statuses, model.getValueAt(row, 6));
-        if (chosen != null && payDAO.updateStatus(id, chosen)) { JOptionPane.showMessageDialog(this, "Status updated."); refresh(); }
+        if (chosen != null) {
+            if (payDAO.updateStatus(id, chosen)) { JOptionPane.showMessageDialog(this, "Payroll status updated successfully."); notifyDataChanged(); }
+            else JOptionPane.showMessageDialog(this, payDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void viewDetails() {
@@ -196,7 +208,10 @@ public class PayrollPanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a payroll to delete."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int c = JOptionPane.showConfirmDialog(this, "Delete payroll " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
-        if (c == JOptionPane.YES_OPTION && payDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Deleted."); refresh(); }
+        int c = JOptionPane.showConfirmDialog(this, "Delete payroll " + id + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (c == JOptionPane.YES_OPTION) {
+            if (payDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Payroll deleted successfully."); notifyDataChanged(); }
+            else JOptionPane.showMessageDialog(this, payDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

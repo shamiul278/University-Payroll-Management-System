@@ -6,6 +6,35 @@ import java.sql.*;
 import java.util.*;
 
 public class EmployeeDAO {
+    private String lastErrorMessage = "";
+
+    public String getLastErrorMessage() {
+        return lastErrorMessage == null || lastErrorMessage.isEmpty()
+            ? "Unable to save employee."
+            : lastErrorMessage;
+    }
+
+    private void clearLastError() {
+        lastErrorMessage = "";
+    }
+
+    private void setLastError(SQLException ex, String action) {
+        int code = ex.getErrorCode();
+        String message = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+
+        if (code == 1062) {
+            if (message.contains("email")) lastErrorMessage = "Unable to " + action + " employee because this email is already used.";
+            else lastErrorMessage = "Unable to " + action + " employee because this employee ID already exists.";
+        } else if (code == 1452) {
+            lastErrorMessage = "Unable to " + action + " employee because the selected department does not exist.";
+        } else if (code == 1406) {
+            lastErrorMessage = "Unable to " + action + " employee because one field is longer than the database limit.";
+        } else if (code == 1048) {
+            lastErrorMessage = "Unable to " + action + " employee because a required field is empty.";
+        } else {
+            lastErrorMessage = "Unable to " + action + " employee. Database error: " + ex.getMessage();
+        }
+    }
 
     public List<Employee> getAll() {
         List<Employee> list = new ArrayList<>();
@@ -49,6 +78,7 @@ public class EmployeeDAO {
     public boolean insert(Employee e) {
         Connection c = null; PreparedStatement ps = null;
         try {
+            clearLastError();
             c = DBConnection.getConnection();
             ps = c.prepareStatement(
                 "INSERT INTO Employee VALUES (?,?,?,?,?,?,?,?)");
@@ -57,15 +87,16 @@ public class EmployeeDAO {
             ps.setString(5, e.getPhone());
             ps.setDate(6, new java.sql.Date(e.getJoinDate().getTime()));
             ps.setString(7, e.getEmploymentType()); ps.setString(8, e.getDeptId());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
-        } catch (SQLException ex) { ex.printStackTrace(); return false; }
+        } catch (SQLException ex) { setLastError(ex, "add"); ex.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
     }
 
     public boolean update(Employee e) {
         Connection c = null; PreparedStatement ps = null;
         try {
+            clearLastError();
             c = DBConnection.getConnection();
             ps = c.prepareStatement(
                 "UPDATE Employee SET name=?,designation=?,email=?,phone=?,join_date=?,employment_type=?,dept_id=? WHERE emp_id=?");
@@ -74,9 +105,11 @@ public class EmployeeDAO {
             ps.setDate(5, new java.sql.Date(e.getJoinDate().getTime()));
             ps.setString(6, e.getEmploymentType()); ps.setString(7, e.getDeptId());
             ps.setString(8, e.getEmpId());
-            ps.executeUpdate(); c.commit();
-            return true;
-        } catch (SQLException ex) { ex.printStackTrace(); return false; }
+            int rows = ps.executeUpdate();
+            if (rows > 0) return true;
+            lastErrorMessage = "Unable to update employee because the employee record was not found.";
+            return false;
+        } catch (SQLException ex) { setLastError(ex, "update"); ex.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
     }
 
@@ -85,7 +118,7 @@ public class EmployeeDAO {
         try {
             c = DBConnection.getConnection();
             ps = c.prepareStatement("DELETE FROM Employee WHERE emp_id=?");
-            ps.setString(1, id); ps.executeUpdate(); c.commit();
+            ps.setString(1, id); ps.executeUpdate();
             return true;
         } catch (SQLException e) { e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }

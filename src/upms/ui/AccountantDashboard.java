@@ -30,6 +30,7 @@ public class AccountantDashboard extends JFrame {
         deductionPanel  = new DeductionPanel();
         reportPanel     = new ReportPanel();
         employeePanel   = new EmployeePanel();
+        wireDataRefresh();
 
         setTitle("UPMS - Accountant Dashboard");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -37,6 +38,23 @@ public class AccountantDashboard extends JFrame {
         setLocationRelativeTo(null);
         Theme.setLookAndFeel();
         initUI();
+    }
+
+    private void wireDataRefresh() {
+        attendancePanel.setDataChangeListener(this::refreshLoadedTables);
+        payrollPanel.setDataChangeListener(this::refreshLoadedTables);
+        bonusPanel.setDataChangeListener(this::refreshLoadedTables);
+        deductionPanel.setDataChangeListener(this::refreshLoadedTables);
+        employeePanel.setDataChangeListener(this::refreshLoadedTables);
+    }
+
+    private void refreshLoadedTables() {
+        attendancePanel.refresh();
+        payrollPanel.refresh();
+        bonusPanel.refresh();
+        deductionPanel.refresh();
+        employeePanel.refresh();
+        reportPanel.refresh();
     }
 
     private void initUI() {

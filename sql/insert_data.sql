@@ -44,8 +44,9 @@ INSERT INTO Deduction VALUES ('DD1',2000,'Tax');
 INSERT INTO Deduction VALUES ('DD2',1500,'Absence Penalty');
 
 -- Payroll
-INSERT INTO Payroll VALUES ('P01','April 2026',NOW(),'Pending',60000,'E01');
-INSERT INTO Payroll VALUES ('P02','April 2026',NOW(),'Processed',52000,'E02');
+-- total_salary is calculated by database triggers from Salary, Bonus, and Deduction.
+INSERT INTO Payroll VALUES ('P01','April 2026',NOW(),'Pending',0,'E01');
+INSERT INTO Payroll VALUES ('P02','April 2026',NOW(),'Processed',0,'E02');
 
 -- Payroll_Bonus
 INSERT INTO Payroll_Bonus VALUES ('P01','B01');

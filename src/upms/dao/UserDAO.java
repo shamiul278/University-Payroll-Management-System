@@ -6,6 +6,31 @@ import java.sql.*;
 import java.util.*;
 
 public class UserDAO {
+    private String lastErrorMessage = "";
+
+    public String getLastErrorMessage() {
+        return lastErrorMessage == null || lastErrorMessage.isEmpty()
+            ? "Unable to save user."
+            : lastErrorMessage;
+    }
+
+    private void clearLastError() {
+        lastErrorMessage = "";
+    }
+
+    private void setLastError(SQLException e, String action) {
+        String message = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        if (e.getErrorCode() == 1062) {
+            if (message.contains("username")) lastErrorMessage = "Unable to " + action + " user because this username is already used.";
+            else lastErrorMessage = "Unable to " + action + " user because this user ID already exists.";
+        } else if (e.getErrorCode() == 1452) {
+            lastErrorMessage = "Unable to " + action + " user because the selected employee does not exist.";
+        } else if (e.getErrorCode() == 1048) {
+            lastErrorMessage = "Unable to " + action + " user because a required field is empty.";
+        } else {
+            lastErrorMessage = "Unable to " + action + " user. Database error: " + e.getMessage();
+        }
+    }
 
     public User login(String username, String password) {
         Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
@@ -40,39 +65,46 @@ public class UserDAO {
     public boolean insert(User u) {
         Connection c = null; PreparedStatement ps = null;
         try {
+            clearLastError();
             c = DBConnection.getConnection();
             ps = c.prepareStatement("INSERT INTO Users VALUES (?,?,?,?,?)");
             ps.setString(1, u.getUserId()); ps.setString(2, u.getUsername());
             ps.setString(3, u.getPassword()); ps.setString(4, u.getRole());
             ps.setString(5, u.getEmpId());
-            ps.executeUpdate(); c.commit();
+            ps.executeUpdate();
             return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
+        } catch (SQLException e) { setLastError(e, "add"); e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
     }
 
     public boolean update(User u) {
         Connection c = null; PreparedStatement ps = null;
         try {
+            clearLastError();
             c = DBConnection.getConnection();
             ps = c.prepareStatement("UPDATE Users SET username=?,password=?,role=?,emp_id=? WHERE user_id=?");
             ps.setString(1, u.getUsername()); ps.setString(2, u.getPassword());
             ps.setString(3, u.getRole()); ps.setString(4, u.getEmpId());
             ps.setString(5, u.getUserId());
-            ps.executeUpdate(); c.commit();
-            return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
+            int rows = ps.executeUpdate();
+            if (rows > 0) return true;
+            lastErrorMessage = "Unable to update user because the user record was not found.";
+            return false;
+        } catch (SQLException e) { setLastError(e, "update"); e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
     }
 
     public boolean delete(String id) {
         Connection c = null; PreparedStatement ps = null;
         try {
+            clearLastError();
             c = DBConnection.getConnection();
             ps = c.prepareStatement("DELETE FROM Users WHERE user_id=?");
-            ps.setString(1, id); ps.executeUpdate(); c.commit();
-            return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
+            ps.setString(1, id); int rows = ps.executeUpdate();
+            if (rows > 0) return true;
+            lastErrorMessage = "Unable to delete user because the user record was not found.";
+            return false;
+        } catch (SQLException e) { setLastError(e, "delete"); e.printStackTrace(); return false; }
         finally { DBConnection.close(c, ps); }
     }
 

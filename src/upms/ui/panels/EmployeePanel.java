@@ -19,6 +19,7 @@ public class EmployeePanel extends JPanel {
     private final DepartmentDAO deptDAO = new DepartmentDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Emp ID","Name","Designation","Email","Phone","Join Date","Type","Dept"};
 
     public EmployeePanel() {
@@ -97,6 +98,15 @@ public class EmployeePanel extends JPanel {
         }
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void filterTable(String query) {
         model.setRowCount(0);
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -124,10 +134,10 @@ public class EmployeePanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select an employee to delete.", "Warning", JOptionPane.WARNING_MESSAGE); return; }
         String id = (String) model.getValueAt(row, 0);
-        int confirm = JOptionPane.showConfirmDialog(this, "Delete employee " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Delete employee " + id + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
-            if (empDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Employee deleted."); refresh(); }
-            else JOptionPane.showMessageDialog(this, "Cannot delete (may have related records).", "Error", JOptionPane.ERROR_MESSAGE);
+            if (empDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Employee deleted successfully."); notifyDataChanged(); }
+            else JOptionPane.showMessageDialog(this, "Cannot delete this employee because related records exist.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -144,8 +154,15 @@ public class EmployeePanel extends JPanel {
         gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(6, 4, 6, 4);
 
         List<Department> depts = deptDAO.getAll();
-        String[] deptIds = depts.stream().map(Department::getDeptId).toArray(String[]::new);
-        String[] deptNames = depts.stream().map(d -> d.getDeptId() + " - " + d.getDeptName()).toArray(String[]::new);
+        String[] deptIds = new String[depts.size() + 1];
+        String[] deptNames = new String[depts.size() + 1];
+        deptIds[0] = null;
+        deptNames[0] = "Unassigned";
+        for (int i = 0; i < depts.size(); i++) {
+            Department d = depts.get(i);
+            deptIds[i + 1] = d.getDeptId();
+            deptNames[i + 1] = d.getDeptId() + " - " + d.getDeptName();
+        }
 
         JTextField idF = Theme.styledField();
         JTextField nameF = Theme.styledField();
@@ -163,7 +180,8 @@ public class EmployeePanel extends JPanel {
             emailF.setText(existing.getEmail()); phoneF.setText(existing.getPhone());
             if (existing.getJoinDate() != null) dateF.setText(new SimpleDateFormat("yyyy-MM-dd").format(existing.getJoinDate()));
             typeC.setSelectedItem(existing.getEmploymentType());
-            for (int i = 0; i < deptIds.length; i++) if (deptIds[i].equals(existing.getDeptId())) { deptC.setSelectedIndex(i); break; }
+            deptC.setSelectedIndex(0);
+            for (int i = 1; i < deptIds.length; i++) if (deptIds[i].equals(existing.getDeptId())) { deptC.setSelectedIndex(i); break; }
         } else {
             idF.setText(empDAO.nextId()); idF.setEditable(false);
         }
@@ -191,18 +209,38 @@ public class EmployeePanel extends JPanel {
         save.addActionListener(e -> {
             try {
                 Employee emp = new Employee();
-                emp.setEmpId(idF.getText().trim());
-                emp.setName(nameF.getText().trim());
+                String empId = idF.getText().trim();
+                String name = nameF.getText().trim();
+                String email = emailF.getText().trim();
+                if (empId.isEmpty()) {
+                    JOptionPane.showMessageDialog(dlg, "Employee ID is required.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (name.isEmpty()) {
+                    JOptionPane.showMessageDialog(dlg, "Employee name is required.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (email.isEmpty()) {
+                    JOptionPane.showMessageDialog(dlg, "Employee email is required.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                emp.setEmpId(empId);
+                emp.setName(name);
                 emp.setDesignation(designF.getText().trim());
-                emp.setEmail(emailF.getText().trim());
+                emp.setEmail(email);
                 emp.setPhone(phoneF.getText().trim());
                 emp.setJoinDate(new SimpleDateFormat("yyyy-MM-dd").parse(dateF.getText().trim()));
                 emp.setEmploymentType((String) typeC.getSelectedItem());
                 emp.setDeptId(deptIds[deptC.getSelectedIndex()]);
 
                 boolean ok = existing == null ? empDAO.insert(emp) : empDAO.update(emp);
-                if (ok) { JOptionPane.showMessageDialog(dlg, "Saved successfully."); dlg.dispose(); refresh(); }
-                else JOptionPane.showMessageDialog(dlg, "Failed to save. Check for duplicate email/ID.", "Error", JOptionPane.ERROR_MESSAGE);
+                if (ok) {
+                    JOptionPane.showMessageDialog(dlg, existing == null ? "Employee added successfully." : "Employee updated successfully.");
+                    dlg.dispose();
+                    notifyDataChanged();
+                }
+                else JOptionPane.showMessageDialog(dlg, empDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dlg, "Invalid input: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }

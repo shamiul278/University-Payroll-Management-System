@@ -13,6 +13,7 @@ public class DeductionPanel extends JPanel {
     private final DeductionDAO dao = new DeductionDAO();
     private JTable table;
     private DefaultTableModel model;
+    private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Deduction ID","Reason","Amount"};
 
     public DeductionPanel() {
@@ -62,6 +63,15 @@ public class DeductionPanel extends JPanel {
             model.addRow(new Object[]{d.getDeductionId(), d.getReason(), String.format("%.2f", d.getAmount())});
     }
 
+    public void setDataChangeListener(Runnable listener) {
+        dataChangeListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyDataChanged() {
+        refresh();
+        dataChangeListener.run();
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a deduction to edit."); return; }
@@ -73,8 +83,21 @@ public class DeductionPanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a deduction to delete."); return; }
         String id = (String) model.getValueAt(row, 0);
-        int c = JOptionPane.showConfirmDialog(this, "Delete deduction " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
-        if (c == JOptionPane.YES_OPTION && dao.delete(id)) { JOptionPane.showMessageDialog(this, "Deleted."); refresh(); }
+        int linkedPayrolls = dao.countPayrollLinks(id);
+        String message = "Delete deduction " + id + "?";
+        if (linkedPayrolls == 1) message += "\nThis deduction will be removed from 1 payroll record.";
+        else if (linkedPayrolls > 1) message += "\nThis deduction will be removed from " + linkedPayrolls + " payroll records.";
+        int c = JOptionPane.showConfirmDialog(this, message, "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (c == JOptionPane.YES_OPTION) {
+            if (dao.delete(id)) {
+                String success = "Deduction deleted successfully.";
+                if (linkedPayrolls == 1) success += "\n1 payroll total was updated.";
+                else if (linkedPayrolls > 1) success += "\n" + linkedPayrolls + " payroll totals were updated.";
+                JOptionPane.showMessageDialog(this, success);
+                notifyDataChanged();
+            }
+            else JOptionPane.showMessageDialog(this, "Unable to delete deduction.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void showForm(Deduction existing) {
@@ -116,10 +139,25 @@ public class DeductionPanel extends JPanel {
 
         save.addActionListener(e -> {
             try {
-                Deduction d = new Deduction(idF.getText().trim(), Double.parseDouble(amtF.getText().trim()), (String)reasonC.getSelectedItem());
+                double amount = Double.parseDouble(amtF.getText().trim());
+                if (amount <= 0) {
+                    JOptionPane.showMessageDialog(dlg, "Deduction amount must be greater than zero.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                Deduction d = new Deduction(idF.getText().trim(), amount, (String)reasonC.getSelectedItem());
                 boolean ok = existing == null ? dao.insert(d) : dao.update(d);
-                if (ok) { JOptionPane.showMessageDialog(dlg, "Saved."); dlg.dispose(); refresh(); }
-                else JOptionPane.showMessageDialog(dlg, "Failed.", "Error", JOptionPane.ERROR_MESSAGE);
+                if (ok) {
+                    String success = existing == null ? "Deduction added successfully." : "Deduction updated successfully.";
+                    if (existing != null) {
+                        int linkedPayrolls = dao.countPayrollLinks(existing.getDeductionId());
+                        if (linkedPayrolls == 1) success += "\n1 linked payroll total was updated.";
+                        else if (linkedPayrolls > 1) success += "\n" + linkedPayrolls + " linked payroll totals were updated.";
+                    }
+                    JOptionPane.showMessageDialog(dlg, success);
+                    dlg.dispose();
+                    notifyDataChanged();
+                }
+                else JOptionPane.showMessageDialog(dlg, "Unable to save deduction.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dlg, "Enter a valid amount.", "Error", JOptionPane.ERROR_MESSAGE);
             }
