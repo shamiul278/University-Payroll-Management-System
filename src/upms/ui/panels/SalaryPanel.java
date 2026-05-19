@@ -18,7 +18,16 @@ public class SalaryPanel extends JPanel {
     private JTable table;
     private DefaultTableModel model;
     private Runnable dataChangeListener = () -> {};
-    private static final String[] COLS = {"Salary ID","Employee ID","Employee Name","Basic Salary","Allowance","Gross Pay"};
+    private static final String[] COLS = {"Salary ID", "Employee ID", "Name", "Basic Salary", "Allowance", "Gross Pay", "Status"};
+
+    // Form fields (left panel)
+    private JTextField idF;
+    private JComboBox<String> empC;
+    private JTextField basicF;
+    private JTextField allowF;
+    private JTextField effectiveDateF;
+    private String[] empIds;
+    private Salary editingRecord = null;
 
     public SalaryPanel() {
         setLayout(new BorderLayout());
@@ -28,53 +37,208 @@ public class SalaryPanel extends JPanel {
     }
 
     private void initUI() {
-        JPanel header = new JPanel(new BorderLayout());
+        // Page header
+        JPanel header = new JPanel(new BorderLayout(0, 3));
         header.setBackground(Theme.CONTENT_BG);
         header.setBorder(new EmptyBorder(0, 0, 16, 0));
-        header.add(Theme.headerLabel("Salary Configuration"), BorderLayout.WEST);
-
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        btnPanel.setBackground(Theme.CONTENT_BG);
-        JButton addBtn  = Theme.primaryButton("+ Assign Salary");
-        JButton editBtn = Theme.primaryButton("✏ Edit");
-        JButton delBtn  = Theme.dangerButton("🗑 Remove");
-        editBtn.setBackground(new Color(0x744210));
-        addBtn.addActionListener(e -> showForm(null));
-        editBtn.addActionListener(e -> editSelected());
-        delBtn.addActionListener(e -> deleteSelected());
-        btnPanel.add(addBtn); btnPanel.add(editBtn); btnPanel.add(delBtn);
-        header.add(btnPanel, BorderLayout.EAST);
+        JLabel title = Theme.headerLabel("Configure Compensation");
+        JLabel sub = new JLabel("Define institutional payroll structures by linking unique salary identifiers to academic and administrative personnel.");
+        sub.setFont(Theme.FONT_SMALL);
+        sub.setForeground(Theme.TEXT_MUTED);
+        header.add(title, BorderLayout.NORTH);
+        header.add(sub, BorderLayout.CENTER);
         add(header, BorderLayout.NORTH);
 
-        model = new DefaultTableModel(COLS, 0) { public boolean isCellEditable(int r, int c) { return false; } };
+        // Two-column layout: form (left) + table (right)
+        JPanel twoCol = new JPanel(new GridLayout(1, 2, 16, 0));
+        twoCol.setBackground(Theme.CONTENT_BG);
+
+        twoCol.add(buildFormCard());
+        twoCol.add(buildTableCard());
+
+        add(twoCol, BorderLayout.CENTER);
+        refresh();
+    }
+
+    // ── Left: allocation form ──────────────────────────────────────────────────
+
+    private JPanel buildFormCard() {
+        JPanel card = new JPanel(new BorderLayout(0, 16));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(Theme.BORDER, 1, true),
+            new EmptyBorder(20, 20, 20, 20)));
+
+        JLabel cardTitle = new JLabel("New Allocation");
+        cardTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        cardTitle.setForeground(Theme.TEXT_DARK);
+        card.add(cardTitle, BorderLayout.NORTH);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBackground(Color.WHITE);
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.insets = new Insets(6, 0, 6, 0);
+        gc.gridwidth = 1;
+
+        // Employee Identity
+        gc.gridx = 0; gc.gridy = 0; gc.weightx = 1; gc.gridwidth = 2;
+        form.add(fieldLabel("EMPLOYEE IDENTITY (EMP_ID)"), gc);
+
+        gc.gridy = 1;
+        List<Employee> emps = empDAO.getAll();
+        empIds = emps.stream().map(Employee::getEmpId).toArray(String[]::new);
+        String[] empNames = emps.stream().map(e -> e.getEmpId() + " - " + e.getName()).toArray(String[]::new);
+        empC = new JComboBox<>(empNames);
+        empC.setFont(Theme.FONT_BODY);
+        empC.setBackground(Color.WHITE);
+        form.add(empC, gc);
+
+        // Salary ID (auto)
+        gc.gridy = 2;
+        form.add(fieldLabel("SALARY ID"), gc);
+        gc.gridy = 3;
+        idF = Theme.styledField();
+        idF.setEditable(false);
+        idF.setBackground(new Color(0xF1F5F9));
+        form.add(idF, gc);
+
+        // Basic + Allowance side by side
+        gc.gridy = 4; gc.gridwidth = 1; gc.weightx = 0.5;
+        form.add(fieldLabel("BASIC SALARY"), gc);
+        gc.gridx = 1;
+        form.add(fieldLabel("ALLOWANCE"), gc);
+
+        gc.gridy = 5; gc.gridx = 0;
+        basicF = Theme.styledField();
+        basicF.setText("0.00");
+        form.add(basicF, gc);
+        gc.gridx = 1;
+        allowF = Theme.styledField();
+        allowF.setText("0.00");
+        form.add(allowF, gc);
+
+        // Effective Date
+        gc.gridy = 6; gc.gridx = 0; gc.gridwidth = 2; gc.weightx = 1;
+        form.add(fieldLabel("EFFECTIVE DATE"), gc);
+        gc.gridy = 7;
+        effectiveDateF = Theme.styledField();
+        effectiveDateF.setText("mm/dd/yyyy");
+        form.add(effectiveDateF, gc);
+
+        card.add(form, BorderLayout.CENTER);
+
+        // Buttons
+        JPanel btns = new JPanel(new GridLayout(2, 1, 0, 8));
+        btns.setBackground(Color.WHITE);
+
+        JButton finalizeBtn = Theme.primaryButton("Finalize Configuration");
+        finalizeBtn.setPreferredSize(new Dimension(0, 42));
+        finalizeBtn.addActionListener(e -> saveAllocation());
+
+        JPanel editDelRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        editDelRow.setBackground(Color.WHITE);
+        JButton editBtn = Theme.primaryButton("Edit Selected");
+        editBtn.setBackground(new Color(0x744210));
+        JButton delBtn = Theme.dangerButton("Remove Selected");
+        editBtn.addActionListener(e -> editSelected());
+        delBtn.addActionListener(e -> deleteSelected());
+        editDelRow.add(editBtn);
+        editDelRow.add(delBtn);
+
+        btns.add(finalizeBtn);
+        btns.add(editDelRow);
+        card.add(btns, BorderLayout.SOUTH);
+
+        // Set initial ID
+        idF.setText(salDAO.nextId());
+        return card;
+    }
+
+    private JLabel fieldLabel(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        l.setForeground(Theme.TEXT_MUTED);
+        return l;
+    }
+
+    // ── Right: recent config logs ──────────────────────────────────────────────
+
+    private JPanel buildTableCard() {
+        JPanel card = new JPanel(new BorderLayout(0, 12));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(Theme.BORDER, 1, true),
+            new EmptyBorder(16, 16, 16, 16)));
+
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setBackground(Color.WHITE);
+        JLabel title = new JLabel("Recent Configuration Logs");
+        title.setFont(Theme.FONT_HEADER);
+        title.setForeground(Theme.TEXT_DARK);
+        JLabel viewAll = new JLabel("VIEW FULL ARCHIVE");
+        viewAll.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        viewAll.setForeground(Theme.PRIMARY);
+        titleRow.add(title, BorderLayout.WEST);
+        titleRow.add(viewAll, BorderLayout.EAST);
+        card.add(titleRow, BorderLayout.NORTH);
+
+        model = new DefaultTableModel(COLS, 0) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
         table = new JTable(model);
         Theme.styleTable(table);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
         // Right-align numeric columns
         DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
         rightAlign.setHorizontalAlignment(SwingConstants.RIGHT);
         for (int i = 3; i <= 5; i++) table.getColumnModel().getColumn(i).setCellRenderer(rightAlign);
 
+        // Status badge renderer
+        table.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                JLabel badge = Theme.statusBadge(v != null ? v.toString() : "ACTIVE");
+                badge.setHorizontalAlignment(SwingConstants.CENTER);
+                return badge;
+            }
+        });
+
         JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(new LineBorder(Theme.BORDER, 1, true));
-        JPanel card = Theme.cardPanel(null);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(Color.WHITE);
         card.add(scroll, BorderLayout.CENTER);
-        add(card, BorderLayout.CENTER);
-        refresh();
+
+        // Fiscal policy reminder
+        JPanel reminder = new JPanel(new BorderLayout());
+        reminder.setBackground(new Color(0xEFF6FF));
+        reminder.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(new Color(0xBFDBFE), 1, true),
+            new EmptyBorder(8, 10, 8, 10)));
+        JLabel reminderText = new JLabel("<html><b>Fiscal Policy Reminder</b><br>"
+            + "Adjustments exceeding 15% of the previous basic salary require secondary authorization.</html>");
+        reminderText.setFont(Theme.FONT_SMALL);
+        reminderText.setForeground(new Color(0x1E40AF));
+        reminder.add(reminderText);
+        card.add(reminder, BorderLayout.SOUTH);
+
+        return card;
     }
 
     public void refresh() {
         model.setRowCount(0);
-        List<Salary> sals = salDAO.getAll();
-        for (Salary s : sals) {
+        for (Salary s : salDAO.getAll()) {
             Employee emp = empDAO.getById(s.getEmpId());
             String empName = emp != null ? emp.getName() : "Unknown";
             model.addRow(new Object[]{
                 s.getSalaryId(), s.getEmpId(), empName,
                 String.format("%.2f", s.getBasicSalary()),
                 String.format("%.2f", s.getAllowance()),
-                String.format("%.2f", s.getGross())
+                String.format("%.2f", s.getGross()),
+                "ACTIVE"
             });
         }
+        if (idF != null) { idF.setText(salDAO.nextId()); editingRecord = null; }
     }
 
     public void setDataChangeListener(Runnable listener) {
@@ -86,11 +250,41 @@ public class SalaryPanel extends JPanel {
         dataChangeListener.run();
     }
 
+    private void saveAllocation() {
+        try {
+            if (empIds == null || empIds.length == 0) {
+                JOptionPane.showMessageDialog(this, "Add an employee before assigning salary.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            double basic = Double.parseDouble(basicF.getText().trim());
+            double allow = Double.parseDouble(allowF.getText().trim());
+            if (basic < 0 || allow < 0) {
+                JOptionPane.showMessageDialog(this, "Salary values cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            Salary s = new Salary(idF.getText().trim(), basic, allow, empIds[empC.getSelectedIndex()]);
+            boolean ok = editingRecord == null ? salDAO.insert(s) : salDAO.update(s);
+            if (ok) {
+                JOptionPane.showMessageDialog(this, editingRecord == null ? "Salary configured successfully." : "Salary updated successfully.");
+                notifyDataChanged();
+            } else JOptionPane.showMessageDialog(this, "Unable to save salary record.", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Enter valid numeric values for salary fields.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void editSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select a salary record to edit."); return; }
         String empId = (String) model.getValueAt(row, 1);
-        showForm(salDAO.getByEmpId(empId));
+        Salary s = salDAO.getByEmpId(empId);
+        if (s == null) return;
+        editingRecord = s;
+        idF.setText(s.getSalaryId());
+        for (int i = 0; i < empIds.length; i++) if (empIds[i].equals(s.getEmpId())) { empC.setSelectedIndex(i); break; }
+        empC.setEnabled(false);
+        basicF.setText(String.valueOf(s.getBasicSalary()));
+        allowF.setText(String.valueOf(s.getAllowance()));
     }
 
     private void deleteSelected() {
@@ -99,91 +293,11 @@ public class SalaryPanel extends JPanel {
         String id = (String) model.getValueAt(row, 0);
         String empId = (String) model.getValueAt(row, 1);
         int payrollCount = salDAO.countPayrollsForEmployee(empId);
-        String message = "Remove salary record " + id + "?";
-        if (payrollCount == 1) message += "\nThis employee has 1 payroll record whose total may be affected.";
-        else if (payrollCount > 1) message += "\nThis employee has " + payrollCount + " payroll records whose totals may be affected.";
-        int confirm = JOptionPane.showConfirmDialog(this, message, "Confirm Remove", JOptionPane.YES_NO_OPTION);
-        if (confirm == JOptionPane.YES_OPTION) {
-            if (salDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Salary record removed successfully."); notifyDataChanged(); }
+        String msg = "Remove salary record " + id + "?";
+        if (payrollCount > 0) msg += "\n" + payrollCount + " payroll record(s) may be affected.";
+        if (JOptionPane.showConfirmDialog(this, msg, "Confirm Remove", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            if (salDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Salary record removed."); notifyDataChanged(); }
             else JOptionPane.showMessageDialog(this, "Unable to remove salary record.", "Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
-
-    private void showForm(Salary existing) {
-        List<Employee> emps = empDAO.getAll();
-        if (emps.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Add an employee before assigning salary.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
-            existing == null ? "Assign Salary" : "Edit Salary", true);
-        dlg.setSize(420, 280);
-        dlg.setLocationRelativeTo(this);
-
-        JPanel p = new JPanel(new GridBagLayout());
-        p.setBackground(Color.WHITE); p.setBorder(new EmptyBorder(20, 24, 20, 24));
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(8, 4, 8, 4);
-
-        String[] empIds = emps.stream().map(Employee::getEmpId).toArray(String[]::new);
-        String[] empNames = emps.stream().map(e -> e.getEmpId() + " - " + e.getName()).toArray(String[]::new);
-
-        JTextField idF    = Theme.styledField();
-        JComboBox<String> empC = new JComboBox<>(empNames); empC.setFont(Theme.FONT_BODY);
-        JTextField basicF = Theme.styledField();
-        JTextField allowF = Theme.styledField();
-
-        if (existing != null) {
-            idF.setText(existing.getSalaryId()); idF.setEditable(false);
-            for (int i = 0; i < empIds.length; i++) if (empIds[i].equals(existing.getEmpId())) { empC.setSelectedIndex(i); break; }
-            empC.setEnabled(false);
-            basicF.setText(String.valueOf(existing.getBasicSalary()));
-            allowF.setText(String.valueOf(existing.getAllowance()));
-        } else {
-            idF.setText(salDAO.nextId()); idF.setEditable(false);
-        }
-
-        String[] labels = {"Salary ID", "Employee", "Basic Salary", "Allowance"};
-        JComponent[] fields = {idF, empC, basicF, allowF};
-        for (int i = 0; i < labels.length; i++) {
-            gc.gridx = 0; gc.gridy = i; gc.weightx = 0.35; p.add(Theme.label(labels[i]), gc);
-            gc.gridx = 1; gc.weightx = 0.65; p.add(fields[i], gc);
-        }
-
-        JButton save = Theme.primaryButton(existing == null ? "Assign" : "Save");
-        JButton cancel = new JButton("Cancel"); cancel.setFont(Theme.FONT_BODY);
-        gc.gridx = 0; gc.gridy = 4; gc.gridwidth = 2;
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT)); btnRow.setBackground(Color.WHITE);
-        btnRow.add(cancel); btnRow.add(save);
-        p.add(btnRow, gc);
-
-        save.addActionListener(e -> {
-            try {
-                Salary s = new Salary(idF.getText().trim(),
-                    Double.parseDouble(basicF.getText().trim()),
-                    Double.parseDouble(allowF.getText().trim()),
-                    empIds[empC.getSelectedIndex()]);
-                if (s.getBasicSalary() < 0 || s.getAllowance() < 0) {
-                    JOptionPane.showMessageDialog(dlg, "Basic salary and allowance cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                boolean ok = existing == null ? salDAO.insert(s) : salDAO.update(s);
-                if (ok) {
-                    String success = existing == null ? "Salary assigned successfully." : "Salary updated successfully.";
-                    int payrollCount = salDAO.countPayrollsForEmployee(s.getEmpId());
-                    if (payrollCount == 1) success += "\n1 payroll total was updated.";
-                    else if (payrollCount > 1) success += "\n" + payrollCount + " payroll totals were updated.";
-                    JOptionPane.showMessageDialog(dlg, success);
-                    dlg.dispose();
-                    notifyDataChanged();
-                }
-                else JOptionPane.showMessageDialog(dlg, "Unable to save salary record.", "Error", JOptionPane.ERROR_MESSAGE);
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dlg, "Enter valid numeric values.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        cancel.addActionListener(e -> dlg.dispose());
-        dlg.setContentPane(p); dlg.setVisible(true);
     }
 }
