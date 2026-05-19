@@ -125,32 +125,8 @@ public class AccountantDashboard extends JFrame {
         left.add(logoBox);
         left.add(breadcrumb);
 
-        JPanel center = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        center.setBackground(Color.WHITE);
-        JTextField search = new JTextField("Search payroll records...");
-        search.setFont(Theme.FONT_BODY);
-        search.setForeground(Theme.TEXT_MUTED);
-        search.setBackground(new Color(0xF8FAFC));
-        search.setPreferredSize(new Dimension(240, 34));
-        search.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(Theme.BORDER, 1, true),
-            new EmptyBorder(5, 12, 5, 12)));
-        search.addFocusListener(new FocusAdapter() {
-            public void focusGained(FocusEvent e) {
-                if ("Search payroll records...".equals(search.getText())) { search.setText(""); search.setForeground(Theme.TEXT_DARK); }
-            }
-            public void focusLost(FocusEvent e) {
-                if (search.getText().isEmpty()) { search.setText("Search payroll records..."); search.setForeground(Theme.TEXT_MUTED); }
-            }
-        });
-        center.add(search);
-
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         right.setBackground(Color.WHITE);
-
-        JLabel yearLbl = new JLabel("Academic Year 2025-26");
-        yearLbl.setFont(Theme.FONT_SMALL);
-        yearLbl.setForeground(Theme.TEXT_MUTED);
 
         JPanel userInfo = new JPanel(new BorderLayout(0, 1));
         userInfo.setBackground(Color.WHITE);
@@ -174,13 +150,11 @@ public class AccountantDashboard extends JFrame {
         logout.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         logout.addActionListener(e -> { dispose(); new LoginFrame().setVisible(true); });
 
-        right.add(yearLbl);
         right.add(userInfo);
         right.add(avatar);
         right.add(logout);
 
         bar.add(left, BorderLayout.WEST);
-        bar.add(center, BorderLayout.CENTER);
         bar.add(right, BorderLayout.EAST);
         return bar;
     }
@@ -198,6 +172,7 @@ public class AccountantDashboard extends JFrame {
         logoArea.setLayout(new BoxLayout(logoArea, BoxLayout.Y_AXIS));
         logoArea.setBackground(Color.WHITE);
         logoArea.setBorder(new EmptyBorder(20, 14, 16, 14));
+        logoArea.setAlignmentX(Component.LEFT_ALIGNMENT);
         logoArea.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74));
 
         JLabel logoName = new JLabel("UPMS");
@@ -216,6 +191,7 @@ public class AccountantDashboard extends JFrame {
         sidebar.add(logoArea);
 
         JSeparator div = new JSeparator();
+        div.setAlignmentX(Component.LEFT_ALIGNMENT);
         div.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
         div.setForeground(Theme.BORDER);
         sidebar.add(div);
@@ -238,6 +214,7 @@ public class AccountantDashboard extends JFrame {
         JPanel statusRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         statusRow.setBackground(Color.WHITE);
         statusRow.setBorder(new EmptyBorder(10, 12, 16, 12));
+        statusRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         statusRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
 
         JPanel dot = new JPanel() {
@@ -270,7 +247,9 @@ public class AccountantDashboard extends JFrame {
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
         btn.setBorder(new EmptyBorder(11, 12, 11, 12));
+        btn.setPreferredSize(new Dimension(220, 42));
         btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.addMouseListener(new MouseAdapter() {

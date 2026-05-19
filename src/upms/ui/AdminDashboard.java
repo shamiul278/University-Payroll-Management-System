@@ -122,27 +122,6 @@ public class AdminDashboard extends JFrame {
         left.add(logoBox);
         left.add(breadcrumb);
 
-        // Center: search
-        JPanel center = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        center.setBackground(Color.WHITE);
-        JTextField search = new JTextField("Search systems...");
-        search.setFont(Theme.FONT_BODY);
-        search.setForeground(Theme.TEXT_MUTED);
-        search.setBackground(new Color(0xF8FAFC));
-        search.setPreferredSize(new Dimension(240, 34));
-        search.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(Theme.BORDER, 1, true),
-            new EmptyBorder(5, 12, 5, 12)));
-        search.addFocusListener(new FocusAdapter() {
-            public void focusGained(FocusEvent e) {
-                if ("Search systems...".equals(search.getText())) { search.setText(""); search.setForeground(Theme.TEXT_DARK); }
-            }
-            public void focusLost(FocusEvent e) {
-                if (search.getText().isEmpty()) { search.setText("Search systems..."); search.setForeground(Theme.TEXT_MUTED); }
-            }
-        });
-        center.add(search);
-
         // Right: user + logout
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         right.setBackground(Color.WHITE);
@@ -174,7 +153,6 @@ public class AdminDashboard extends JFrame {
         right.add(logout);
 
         bar.add(left, BorderLayout.WEST);
-        bar.add(center, BorderLayout.CENTER);
         bar.add(right, BorderLayout.EAST);
         return bar;
     }
@@ -193,6 +171,7 @@ public class AdminDashboard extends JFrame {
         logoArea.setLayout(new BoxLayout(logoArea, BoxLayout.Y_AXIS));
         logoArea.setBackground(Color.WHITE);
         logoArea.setBorder(new EmptyBorder(20, 14, 16, 14));
+        logoArea.setAlignmentX(Component.LEFT_ALIGNMENT);
         logoArea.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74));
 
         JLabel logoName = new JLabel("UPMS");
@@ -211,6 +190,7 @@ public class AdminDashboard extends JFrame {
         sidebar.add(logoArea);
 
         JSeparator divider = new JSeparator();
+        divider.setAlignmentX(Component.LEFT_ALIGNMENT);
         divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
         divider.setForeground(Theme.BORDER);
         sidebar.add(divider);
@@ -234,6 +214,7 @@ public class AdminDashboard extends JFrame {
         JPanel statusRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         statusRow.setBackground(Color.WHITE);
         statusRow.setBorder(new EmptyBorder(10, 12, 16, 12));
+        statusRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         statusRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
 
         JPanel dot = new JPanel() {
@@ -267,7 +248,9 @@ public class AdminDashboard extends JFrame {
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
         btn.setBorder(new EmptyBorder(11, 12, 11, 12));
+        btn.setPreferredSize(new Dimension(220, 42));
         btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.addMouseListener(new MouseAdapter() {
