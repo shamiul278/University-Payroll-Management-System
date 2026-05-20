@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>UPMS - Payroll Processing Engine</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#1a237e",
+                        "primary": "#000666",
+                        "surface": "#f8f9fa",
+                        "on-surface": "#191c1d",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f3f4f5",
+                        "surface-container-high": "#e7e8e9",
+                        "outline-variant": "#c6c5d4"
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .active-pill::before {
+            content: ''; position: absolute; left: 0; top: 25%; height: 50%; width: 4px;
+            background-color: #000666; border-top-right-radius: 9999px; border-bottom-right-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+
+<aside class="h-screen w-64 fixed left-0 top-0 bg-slate-100 flex flex-col py-6 z-50 overflow-y-auto">
+    <div class="px-6 mb-10">
+        <h1 class="font-headline text-xl font-bold text-primary">UPMS</h1>
+        <p class="text-xs text-slate-500 font-medium tracking-wide">Academic Architect</p>
+    </div>
+    <nav class="flex-1 px-4 space-y-1">
+        <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-xl font-medium text-sm">
+            <span class="material-symbols-outlined">dashboard</span> Dashboard
+        </a>
+        <a href="/employees" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-xl font-medium text-sm">
+            <span class="material-symbols-outlined">badge</span> Employee Management
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-xl font-medium text-sm">
+            <span class="material-symbols-outlined">account_tree</span> Department Setup
+        </a>
+        <a href="/salary-config" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-xl font-medium text-sm">
+            <span class="material-symbols-outlined">settings_suggest</span> Salary Configuration
+        </a>
+        <a href="/attendance" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-200/50 transition-colors rounded-xl font-medium text-sm">
+            <span class="material-symbols-outlined">event_available</span> Attendance
+        </a>
+        <a href="/payroll" class="relative flex items-center gap-3 px-4 py-3 text-primary font-semibold transition-all duration-200 active-pill rounded-xl text-sm bg-slate-200/40">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span> Payroll Processing
+        </a>
+    </nav>
+    <div class="mt-auto px-6 pt-6 border-t border-slate-200">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold">MR</div>
+            <div>
+                <p class="text-sm font-bold text-primary">Mr. Rahman</p>
+                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Senior Accountant</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<div class="ml-64 min-h-screen">
+    <header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 bg-white/85 backdrop-blur-xl z-40 flex justify-between items-center px-8 border-b border-slate-100">
+        <div class="flex items-center gap-4">
+            <nav class="flex items-center gap-2 text-sm font-medium">
+                <span class="text-slate-400">Finance</span>
+                <span class="material-symbols-outlined text-slate-400 text-sm">chevron_right</span>
+                <span class="text-primary font-bold">Payroll Engine</span>
+            </nav>
+        </div>
+    </header>
+
+    <main class="pt-24 px-8 pb-12">
+
+        <div th:if="${successMessage}" class="mb-6 p-4 bg-green-100 text-green-800 rounded-xl text-sm font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined text-green-700">check_circle</span>
+            <span th:text="${successMessage}"></span>
+        </div>
+
+        <div class="flex justify-between items-end mb-10">
+            <div class="max-w-2xl">
+                <h2 class="font-headline text-4xl font-extrabold text-primary tracking-tight mb-2">Payroll History</h2>
+                <p class="text-slate-500 text-lg leading-relaxed">Centralized engine for academic staff disbursements, monthly reconciliations, and statutory compliance.</p>
+            </div>
+            <button onclick="openPayrollPanel()" class="bg-gradient-to-br from-primary to-primary-container text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-lg shadow-primary/10 hover:opacity-90 transition-all">
+                <span class="material-symbols-outlined">add_circle</span>
+                Generate New Payroll
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+            <div class="col-span-1 p-6 rounded-xl bg-white border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-xs font-bold text-slate-400 tracking-widest uppercase">Pending Payout</span>
+                    <span class="material-symbols-outlined text-primary">pending_actions</span>
+                </div>
+                <p class="text-3xl font-headline font-extrabold text-primary" th:text="'$' + ${#numbers.formatDecimal(payrollData.pendingPayout, 1, 'COMMA', 2, 'POINT')}">$0.00</p>
+            </div>
+            <div class="col-span-1 p-6 rounded-xl bg-white border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-xs font-bold text-slate-400 tracking-widest uppercase">Total Disbursed</span>
+                    <span class="material-symbols-outlined text-primary">payments</span>
+                </div>
+                <p class="text-3xl font-headline font-extrabold text-primary" th:text="'$' + ${#numbers.formatDecimal(payrollData.totalDisbursed, 1, 'COMMA', 2, 'POINT')}">$0.00</p>
+            </div>
+            <div class="col-span-2 p-6 rounded-xl bg-primary text-white overflow-hidden relative shadow-lg">
+                <div class="relative z-10 flex flex-col justify-between h-full">
+                    <div>
+                        <span class="text-xs font-bold opacity-70 tracking-widest uppercase">Next Cycle</span>
+                        <p class="text-2xl font-headline font-extrabold mt-1" th:text="${payrollData.nextCycleMonth} + ' Payroll'">Month Payroll</p>
+                    </div>
+                    <div class="flex items-center gap-4 mt-6">
+                        <div class="px-4 py-2 bg-white/10 backdrop-blur rounded-lg border border-white/10">
+                            <span class="block text-[10px] uppercase font-bold opacity-60">Status</span>
+                            <span class="font-bold text-sm">Configuration Phase</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-primary-container rounded-full opacity-50 blur-3xl"></div>
+            </div>
+        </div>
+
+        <section class="bg-white rounded-xl p-8 border border-slate-200 shadow-sm overflow-hidden">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="font-headline text-xl font-bold text-primary">Monthly Records</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                    <tr class="bg-slate-50 text-left">
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest rounded-l-xl">Month</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Generated Date</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Payout</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="rec : ${payrollData.monthlyRecords}" class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-5 font-bold text-primary" th:text="${rec[0]}">Month Year</td>
+                        <td class="px-6 py-5 text-slate-500 text-sm" th:text="${#dates.format(rec[1], 'MMM dd, yyyy, hh:mm a')}">Date</td>
+                        <td class="px-6 py-5 font-headline font-bold text-primary" th:text="'$' + ${#numbers.formatDecimal(rec[2], 1, 'COMMA', 2, 'POINT')}">$0.00</td>
+                        <td class="px-6 py-5">
+                                    <span th:class="${rec[3] == 'DISBURSED'} ? 'inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold' : 'inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold'" th:text="${rec[3]}">
+                                        Status
+                                    </span>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(payrollData.monthlyRecords)}">
+                        <td colspan="4" class="px-6 py-8 text-center text-slate-400 font-medium">No payroll history found. Execute a run to generate logs.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="payrollPanelOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex justify-end opacity-0 pointer-events-none transition-opacity duration-300">
+
+    <form th:action="@{/execute-payroll}" method="POST" id="payrollPanel" class="w-full max-w-4xl bg-white h-full shadow-2xl flex flex-col translate-x-full transition-transform duration-300">
+
+        <input type="hidden" name="monthYear" th:value="${payrollData.nextCycleMonth}" />
+        <input type="hidden" name="totalGross" th:value="${payrollData.activeTotalGross}" />
+        <input type="hidden" name="totalDeduction" th:value="${payrollData.activeTotalDeduction}" />
+        <input type="hidden" name="netPayout" th:value="${payrollData.activeNetPayout}" />
+
+        <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Processing View</span>
+                <h2 class="text-2xl font-headline font-extrabold text-primary" th:text="'Payroll Cycle: ' + ${payrollData.nextCycleMonth}">Cycle</h2>
+            </div>
+            <button type="button" onclick="closePayrollPanel()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
+                <span class="material-symbols-outlined text-slate-400">close</span>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-1 bg-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-white p-6">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Gross Pay (Base + All.)</span>
+                    <p class="text-xl font-headline font-bold text-primary" th:text="'$' + ${#numbers.formatDecimal(payrollData.activeTotalGross, 1, 'COMMA', 2, 'POINT')}">$0.00</p>
+                </div>
+                <div class="bg-white p-6">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Bonuses (+)</span>
+                    <p class="text-xl font-headline font-bold text-green-600">Included in Gross</p>
+                </div>
+                <div class="bg-white p-6">
+                    <span class="text-[10px] font-bold text-error uppercase tracking-widest mb-1 block">Deductions (-)</span>
+                    <p class="text-xl font-headline font-bold text-error" th:text="'-$' + ${#numbers.formatDecimal(payrollData.activeTotalDeduction, 1, 'COMMA', 2, 'POINT')}">-$0.00</p>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="font-headline font-bold text-primary mb-4 flex items-center gap-2">
+                    Employee Breakdown
+                    <span class="text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full" th:text="${#lists.size(payrollData.activeBreakdown)} + ' total'">0 total</span>
+                </h4>
+
+                <div class="space-y-3">
+
+                    <div th:each="emp : ${payrollData.activeBreakdown}" class="flex items-center justify-between p-4 bg-white border border-slate-100 shadow-sm rounded-xl hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 text-primary flex items-center justify-center font-bold" th:text="${#strings.substring(emp[1],0,1)}">A</div>
+                            <div>
+                                <p class="font-bold text-primary text-sm" th:text="${emp[1]}">Employee Name</p>
+                                <p class="text-[11px] text-slate-500" th:text="${emp[2]} + ' • ID: ' + ${emp[0]}">Role • ID</p>
+                            </div>
+                        </div>
+                        <div class="text-right flex items-center gap-8">
+                            <div>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">Basic + Allow.</p>
+                                <p class="text-sm font-bold text-primary" th:text="'$' + ${#numbers.formatDecimal(emp[3], 1, 'COMMA', 2, 'POINT')}">$0.00</p>
+                            </div>
+                            <div class="text-green-600">
+                                <p class="text-[10px] font-bold uppercase">Bonus</p>
+                                <p class="text-sm font-bold" th:text="'+$' + ${#numbers.formatDecimal(emp[4], 1, 'COMMA', 2, 'POINT')}">+$0.00</p>
+                            </div>
+
+                            <div th:class="${emp[5] > 0} ? 'text-error' : 'text-slate-300'">
+                                <p class="text-[10px] font-bold uppercase">Ded.</p>
+                                <p class="text-sm font-bold" th:text="'-$' + ${#numbers.formatDecimal(emp[5], 1, 'COMMA', 2, 'POINT')}">-$0.00</p>
+                                <span th:if="${emp[5] > 0}" class="text-[8px] font-bold block uppercase tracking-tighter">Absence Penalty</span>
+                            </div>
+
+                            <div class="px-4 py-2 bg-slate-50 rounded-lg border border-primary/10">
+                                <p class="text-[10px] text-primary font-bold uppercase">Net Payout</p>
+                                <p class="text-base font-headline font-extrabold text-primary" th:text="'$' + ${#numbers.formatDecimal((emp[3] + emp[4]) - emp[5], 1, 'COMMA', 2, 'POINT')}">$0.00</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="p-8 border-t border-slate-100 bg-white flex justify-between items-center">
+            <button type="button" onclick="closePayrollPanel()" class="px-6 py-3 font-headline font-bold text-slate-500 hover:text-primary transition-colors">
+                Close Panel
+            </button>
+            <div class="flex gap-4">
+                <button type="submit" class="px-8 py-3 rounded-xl bg-gradient-to-br from-[#000666] to-[#1a237e] text-white font-headline font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Execute Payroll Run
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function openPayrollPanel() {
+        document.getElementById('payrollPanelOverlay').classList.remove('opacity-0', 'pointer-events-none');
+        document.getElementById('payrollPanel').classList.remove('translate-x-full');
+    }
+
+    function closePayrollPanel() {
+        document.getElementById('payrollPanelOverlay').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('payrollPanel').classList.add('translate-x-full');
+    }
+</script>
+</body>
+</html>
