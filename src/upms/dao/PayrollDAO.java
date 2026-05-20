@@ -33,11 +33,12 @@ public class PayrollDAO {
 
     private void setLastError(SQLException e, String action) {
         String message = e.getMessage();
-        if (message != null && message.contains("does not exist")) {
-            lastErrorMessage = "Unable to " + action + " payroll because the payroll procedure is missing. Run sql\\create_tables.sql again.";
+        String normalized = message == null ? "" : message.toLowerCase();
+        if (normalized.contains("sp_generate_payroll") || normalized.contains("must be declared")) {
+            lastErrorMessage = "Unable to " + action + " payroll because the payroll procedure is missing. Run sql\\upms.sql again.";
         } else if (message != null && message.contains("employee salary is not configured")) {
             lastErrorMessage = "Unable to generate payroll because this employee has no salary record.";
-        } else if (e.getErrorCode() == 1062) {
+        } else if (e.getErrorCode() == 1) {
             lastErrorMessage = "Unable to " + action + " payroll because this payroll ID already exists.";
         } else {
             lastErrorMessage = "Unable to " + action + " payroll. Database error: " + message;

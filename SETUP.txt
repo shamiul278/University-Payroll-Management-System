@@ -1,67 +1,86 @@
 ===============================================================
  UNIVERSITY PAYROLL MANAGEMENT SYSTEM (UPMS)
- Setup for XAMPP (MySQL)
+ Setup for Oracle Database 10g
 ===============================================================
 
 REQUIREMENTS:
   - Java JDK 8 or higher
-  - XAMPP (MySQL running)
-  - MySQL Connector/J JAR file
+  - Oracle Database 10g or Oracle Database 10g Express Edition
+  - Oracle JDBC driver JAR file: ojdbc14.jar
 
 ---------------------------------------------------------------
-STEP 1: Start XAMPP MySQL
+STEP 1: Start Oracle Database
 ---------------------------------------------------------------
-1. Open XAMPP Control Panel
-2. Click START next to MySQL
-3. Optionally click START next to Apache (for phpMyAdmin)
+Start Oracle Database 10g / Oracle XE from Windows Services or the
+Oracle start menu.
 
----------------------------------------------------------------
-STEP 2: Create the Database & User in phpMyAdmin
----------------------------------------------------------------
-Open browser → go to: http://localhost/phpmyadmin
+The project is configured for the default Oracle XE connection:
+  Host: localhost
+  Port: 1521
+  SID:  XE
 
-Option A — Run the SQL script:
-  Click SQL tab → paste contents of:  sql\create_tables.sql
-  Then click GO.
-
-  Then paste:  sql\insert_data.sql  → click GO
-
-Option B — Command line:
-  Open XAMPP Shell → type:
-    mysql -u root -p < "C:\Users\Shamiul Islam\Desktop\University-Payroll-Management-System\sql\create_tables.sql"
-    mysql -u root -p upms < "C:\Users\Shamiul Islam\Desktop\University-Payroll-Management-System\sql\insert_data.sql"
-
-Create a MySQL user (if not already done):
-  In phpMyAdmin → User Accounts → Add user account
-    Username:  project
-    Password:  12345678
-    Database:  grant all on upms.*
-
-  OR just use root (change DBConnection.java USER to "root" and PASSWORD to "").
+JDBC URL:
+  jdbc:oracle:thin:@localhost:1521:XE
 
 ---------------------------------------------------------------
-STEP 3: Add MySQL Connector/J to lib\ folder
+STEP 2: Create the Oracle User
 ---------------------------------------------------------------
-Download from:
-  https://dev.mysql.com/downloads/connector/j/
-  (choose "Platform Independent" → ZIP)
+Open SQL*Plus as SYSTEM:
 
-Extract the ZIP → find the .jar file inside (e.g. mysql-connector-j-8.x.xx.jar)
+  sqlplus system/<your_system_password>@XE
 
-Copy it into:   lib\
+Run:
 
-RENAME it to:   mysql-connector.jar
+  CREATE USER Project IDENTIFIED BY 12345678;
+  GRANT CONNECT, RESOURCE TO Project;
+  ALTER USER Project QUOTA UNLIMITED ON USERS;
+  EXIT;
 
-Your lib\ folder should look like:
-  lib\mysql-connector.jar
+If the Project user already exists, you can reset the password:
+
+  ALTER USER Project IDENTIFIED BY 12345678;
 
 ---------------------------------------------------------------
-STEP 4: Compile and Run
+STEP 3: Load the Database Script
 ---------------------------------------------------------------
-Double-click:  compile.bat
+From this project folder, run:
+
+  sqlplus Project/12345678@XE @sql\upms.sql
+
+This creates:
+  - 10 UPMS tables
+  - primary keys, unique constraints, foreign keys, and indexes
+  - payroll triggers
+  - payroll stored procedures
+  - sample data
+
+---------------------------------------------------------------
+STEP 4: Add Oracle JDBC Driver
+---------------------------------------------------------------
+Copy Oracle 10g JDBC driver into:
+
+  lib\
+
+Rename it to:
+
+  ojdbc14.jar
+
+Your lib folder should include:
+
+  lib\ojdbc14.jar
+
+The old MySQL connector is no longer used by the project.
+
+---------------------------------------------------------------
+STEP 5: Compile and Run
+---------------------------------------------------------------
+Double-click:
+
+  compile.bat
 
 To run again after first compilation:
-  Double-click: run.bat
+
+  run.bat
 
 ---------------------------------------------------------------
 DEFAULT LOGIN CREDENTIALS
@@ -70,26 +89,25 @@ DEFAULT LOGIN CREDENTIALS
   Accountant:     accountant  / acc123
 
 ---------------------------------------------------------------
-DATABASE CONNECTION (already configured)
+DATABASE CONNECTION
 ---------------------------------------------------------------
   File:     src\upms\db\DBConnection.java
-  URL:      jdbc:mysql://localhost:3306/upms
-  User:     project
+  URL:      jdbc:oracle:thin:@localhost:1521:XE
+  User:     Project
   Password: 12345678
 
 ---------------------------------------------------------------
 PROJECT STRUCTURE
 ---------------------------------------------------------------
-  sql\create_tables.sql       — MySQL DDL (10 tables)
-  sql\insert_data.sql         — Sample data
-  lib\mysql-connector.jar     — MySQL JDBC driver (add this!)
-  src\upms\Main.java          — Entry point
-  src\upms\db\DBConnection    — Database connection
-  src\upms\model\             — 8 model classes
-  src\upms\dao\               — 8 DAO classes (all CRUD)
-  src\upms\ui\LoginFrame      — Login screen
-  src\upms\ui\AdminDashboard  — Admin interface
-  src\upms\ui\AccountantDashboard — Accountant interface
-  src\upms\ui\panels\         — 8 module panels
+  sql\upms.sql                 - Oracle 10g database script
+  lib\ojdbc14.jar              - Oracle JDBC driver to add
+  src\upms\Main.java           - Entry point
+  src\upms\db\DBConnection     - Database connection
+  src\upms\model\              - Model classes
+  src\upms\dao\                - DAO classes
+  src\upms\ui\LoginFrame       - Login screen
+  src\upms\ui\AdminDashboard   - Admin interface
+  src\upms\ui\AccountantDashboard - Accountant interface
+  src\upms\ui\panels\          - Module panels
 
 ===============================================================

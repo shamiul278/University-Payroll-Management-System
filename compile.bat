@@ -1,12 +1,17 @@
 @echo off
 echo ============================================
 echo  University Payroll Management System
-echo  Build Script (MySQL / XAMPP)
+echo  Build Script (Oracle 10g)
 echo ============================================
 
-set LIB=lib\mysql-connector.jar
+set LIB=lib\ojdbc14.jar
 set SRC=src
 set OUT=out
+
+if not exist "%LIB%" (
+    echo WARNING: Oracle JDBC driver not found at %LIB%
+    echo Copy Oracle 10g ojdbc14.jar into the lib folder before running the app.
+)
 
 if exist %OUT% (
     echo Cleaning old .class files...
@@ -53,11 +58,15 @@ if %ERRORLEVEL% == 0 (
     echo.
     echo Compilation successful!
     echo.
-    echo Running UPMS...
-    java -cp "%OUT%;%LIB%" upms.Main
+    if exist "%LIB%" (
+        echo Running UPMS...
+        java -cp "%OUT%;%LIB%" upms.Main
+    ) else (
+        echo Skipping run because %LIB% is missing.
+    )
 ) else (
     echo.
     echo Compilation FAILED. Check errors above.
-    echo Make sure mysql-connector.jar is in the lib\ folder.
+    echo Make sure ojdbc14.jar is in the lib\ folder.
     pause
 )

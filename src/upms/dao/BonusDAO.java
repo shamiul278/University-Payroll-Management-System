@@ -12,10 +12,10 @@ public class BonusDAO {
         Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
         try {
             c = DBConnection.getConnection();
-            ps = c.prepareStatement("SELECT * FROM Bonus ORDER BY bonus_id");
+            ps = c.prepareStatement("SELECT bonus_id, amount, bonus_type FROM Bonus ORDER BY bonus_id");
             rs = ps.executeQuery();
             while (rs.next())
-                list.add(new Bonus(rs.getString("bonus_id"), rs.getDouble("amount"), rs.getString("type")));
+                list.add(new Bonus(rs.getString("bonus_id"), rs.getDouble("amount"), rs.getString("bonus_type")));
         } catch (SQLException e) { e.printStackTrace(); }
         finally { DBConnection.close(c, ps, rs); }
         return list;
@@ -27,10 +27,10 @@ public class BonusDAO {
         try {
             c = DBConnection.getConnection();
             ps = c.prepareStatement(
-                "SELECT b.* FROM Bonus b JOIN Payroll_Bonus pb ON b.bonus_id=pb.bonus_id WHERE pb.payroll_id=?");
+                "SELECT b.bonus_id, b.amount, b.bonus_type FROM Bonus b JOIN Payroll_Bonus pb ON b.bonus_id=pb.bonus_id WHERE pb.payroll_id=?");
             ps.setString(1, payrollId); rs = ps.executeQuery();
             while (rs.next())
-                list.add(new Bonus(rs.getString("bonus_id"), rs.getDouble("amount"), rs.getString("type")));
+                list.add(new Bonus(rs.getString("bonus_id"), rs.getDouble("amount"), rs.getString("bonus_type")));
         } catch (SQLException e) { e.printStackTrace(); }
         finally { DBConnection.close(c, ps, rs); }
         return list;
@@ -40,7 +40,7 @@ public class BonusDAO {
         Connection c = null; PreparedStatement ps = null;
         try {
             c = DBConnection.getConnection();
-            ps = c.prepareStatement("INSERT INTO Bonus VALUES (?,?,?)");
+            ps = c.prepareStatement("INSERT INTO Bonus (bonus_id, amount, bonus_type) VALUES (?,?,?)");
             ps.setString(1, b.getBonusId()); ps.setDouble(2, b.getAmount()); ps.setString(3, b.getType());
             ps.executeUpdate();
             return true;
@@ -52,7 +52,7 @@ public class BonusDAO {
         Connection c = null; PreparedStatement ps = null;
         try {
             c = DBConnection.getConnection();
-            ps = c.prepareStatement("UPDATE Bonus SET amount=?,type=? WHERE bonus_id=?");
+            ps = c.prepareStatement("UPDATE Bonus SET amount=?, bonus_type=? WHERE bonus_id=?");
             ps.setDouble(1, b.getAmount()); ps.setString(2, b.getType()); ps.setString(3, b.getBonusId());
             ps.executeUpdate();
             return true;

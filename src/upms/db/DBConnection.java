@@ -3,15 +3,15 @@ package upms.db;
 import java.sql.*;
 
 public class DBConnection {
-    private static final String URL      = "jdbc:mysql://localhost:3306/upms";
-    private static final String USER     = "root";
-    private static final String PASSWORD = "";
+    private static final String URL      = "jdbc:oracle:thin:@localhost:1521:XE";
+    private static final String USER     = "Project";
+    private static final String PASSWORD = "12345678";
 
     static {
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
         } catch (ClassNotFoundException e) {
-            System.err.println("MySQL JDBC Driver not found. Add mysql-connector.jar to classpath.");
+            System.err.println("Oracle JDBC Driver not found. Add ojdbc14.jar to the lib folder.");
         }
     }
 
