@@ -32,8 +32,8 @@ public class DepartmentPanel extends JPanel {
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         btnPanel.setBackground(Theme.CONTENT_BG);
         JButton addBtn  = Theme.primaryButton("+ Add Department");
-        JButton editBtn = Theme.primaryButton("✏ Edit");
-        JButton delBtn  = Theme.dangerButton("🗑 Delete");
+        JButton editBtn = Theme.primaryButton("Edit");
+        JButton delBtn  = Theme.dangerButton("Delete");
         editBtn.setBackground(new Color(0x744210));
         addBtn.addActionListener(e -> showForm(null));
         editBtn.addActionListener(e -> editSelected());
