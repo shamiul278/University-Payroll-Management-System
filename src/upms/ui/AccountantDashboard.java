@@ -278,7 +278,7 @@ public class AccountantDashboard extends JFrame {
             case "Overview":              contentArea.add(buildDashHome(), BorderLayout.CENTER); break;
             case "Employee Management":   contentArea.add(employeePanel, BorderLayout.CENTER); employeePanel.refresh(); break;
             case "Attendance":            contentArea.add(attendancePanel, BorderLayout.CENTER); attendancePanel.refresh(); break;
-            case "Payroll Processing":    contentArea.add(payrollPanel, BorderLayout.CENTER); payrollPanel.refresh(); break;
+            case "Payroll Processing":    showPayrollProcessing(false); break;
             case "Bonus Management":      contentArea.add(bonusPanel, BorderLayout.CENTER); bonusPanel.refresh(); break;
             case "Deductions":            contentArea.add(deductionPanel, BorderLayout.CENTER); deductionPanel.refresh(); break;
             case "Reports & Analytics":   contentArea.add(reportPanel, BorderLayout.CENTER); reportPanel.refresh(); break;
@@ -316,7 +316,9 @@ public class AccountantDashboard extends JFrame {
 
         JPanel headerBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         headerBtns.setBackground(Theme.CONTENT_BG);
-        headerBtns.add(Theme.primaryButton("Process New Payroll"));
+        JButton processPayroll = Theme.primaryButton("Process New Payroll");
+        processPayroll.addActionListener(e -> showPayrollProcessing(true));
+        headerBtns.add(processPayroll);
 
         headerRow.add(titleBlock, BorderLayout.WEST);
         headerRow.add(headerBtns, BorderLayout.EAST);
@@ -358,6 +360,18 @@ public class AccountantDashboard extends JFrame {
 
         p.add(body, BorderLayout.CENTER);
         return p;
+    }
+
+    private void showPayrollProcessing(boolean startNewPayroll) {
+        breadcrumbCurrent.setText("Payroll Processing");
+        contentArea.removeAll();
+        contentArea.add(payrollPanel, BorderLayout.CENTER);
+        payrollPanel.refresh();
+        contentArea.revalidate();
+        contentArea.repaint();
+        if (startNewPayroll) {
+            SwingUtilities.invokeLater(payrollPanel::processNewPayroll);
+        }
     }
 
     private JPanel buildPayrollTrends(List<Payroll> payrolls) {

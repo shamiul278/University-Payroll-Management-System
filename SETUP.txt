@@ -45,7 +45,7 @@ STEP 3: Load the Database Script
 ---------------------------------------------------------------
 From this project folder, run:
 
-  sqlplus Project/12345678@XE @sql\upms.sql
+  sqlplus Project/12345678@XE @sql\upms_oracle10g.sql
 
 This creates:
   - 10 UPMS tables
@@ -99,7 +99,7 @@ DATABASE CONNECTION
 ---------------------------------------------------------------
 PROJECT STRUCTURE
 ---------------------------------------------------------------
-  sql\upms.sql                 - Oracle 10g database script
+  sql\upms_oracle10g.sql       - Oracle 10g database script
   lib\ojdbc14.jar              - Oracle JDBC driver to add
   src\upms\Main.java           - Entry point
   src\upms\db\DBConnection     - Database connection

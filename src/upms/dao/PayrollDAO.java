@@ -35,7 +35,7 @@ public class PayrollDAO {
         String message = e.getMessage();
         String normalized = message == null ? "" : message.toLowerCase();
         if (normalized.contains("sp_generate_payroll") || normalized.contains("must be declared")) {
-            lastErrorMessage = "Unable to " + action + " payroll because the payroll procedure is missing. Run sql\\upms.sql again.";
+            lastErrorMessage = "Unable to " + action + " payroll because the payroll procedure is missing. Run sql\\upms_oracle10g.sql again.";
         } else if (message != null && message.contains("employee salary is not configured")) {
             lastErrorMessage = "Unable to generate payroll because this employee has no salary record.";
         } else if (e.getErrorCode() == 1) {

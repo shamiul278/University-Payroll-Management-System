@@ -18,8 +18,10 @@ public class EmployeePanel extends JPanel {
     private final DepartmentDAO deptDAO = new DepartmentDAO();
     private JTable table;
     private DefaultTableModel model;
+    private TableRowSorter<DefaultTableModel> sorter;
     private Runnable dataChangeListener = () -> {};
     private static final String[] COLS = {"Emp ID", "Name", "Designation", "Email", "Phone", "Join Date", "Type", "Dept"};
+    private static final int[] COL_WIDTHS = {80, 220, 160, 230, 130, 110, 120, 90};
 
     public EmployeePanel() {
         setLayout(new BorderLayout());
@@ -77,7 +79,7 @@ public class EmployeePanel extends JPanel {
         search.addActionListener(e -> filterTable(search.getText().trim()));
         JButton clearBtn = new JButton("Clear");
         clearBtn.setFont(Theme.FONT_BODY);
-        clearBtn.addActionListener(e -> { search.setText(""); refresh(); });
+        clearBtn.addActionListener(e -> { search.setText(""); filterTable(""); });
         searchPanel.add(search);
         searchPanel.add(searchBtn);
         searchPanel.add(clearBtn);
@@ -88,12 +90,14 @@ public class EmployeePanel extends JPanel {
             public boolean isCellEditable(int r, int c) { return false; }
         };
         table = new JTable(model);
+        sorter = new TableRowSorter<>(model);
+        table.setRowSorter(sorter);
         Theme.styleTable(table);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setRowHeight(42);
 
-        // Avatar renderer for Name column (index 1)
-        table.getColumnModel().getColumn(1).setCellRenderer(new AvatarNameRenderer());
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        configureTableColumns();
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(new LineBorder(Theme.BORDER, 1, true));
@@ -104,34 +108,92 @@ public class EmployeePanel extends JPanel {
         refresh();
     }
 
-    /** Renders the Name column with a colored avatar circle + text. */
-    private static class AvatarNameRenderer extends DefaultTableCellRenderer {
+    /** Single-instance renderer — draws avatar + name directly, allocates nothing per paint. */
+    private static class AvatarNameRenderer extends JPanel implements TableCellRenderer {
+        private String name = "";
+        private boolean selected;
+        private Color avatarBg = Color.GRAY;
+        private static final Font AVATAR_FONT = new Font("Segoe UI", Font.BOLD, 11);
+        private static final Font NAME_FONT   = new Font("Segoe UI", Font.BOLD, 12);
+
+        AvatarNameRenderer() { setOpaque(true); }
+
+        @Override
         public Component getTableCellRendererComponent(
                 JTable t, Object value, boolean sel, boolean foc, int row, int col) {
-            String name = value != null ? value.toString() : "";
-            JPanel cell = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-            cell.setBackground(sel ? new Color(0xEEF2FF) : Color.WHITE);
-
-            JPanel avatar = Theme.avatarCircle(name, Theme.avatarColor(name));
-            JLabel lbl = new JLabel(name);
-            lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            lbl.setForeground(sel ? Theme.PRIMARY : Theme.TEXT_DARK);
-
-            cell.add(avatar);
-            cell.add(lbl);
-            return cell;
+            name      = value != null ? value.toString() : "";
+            selected  = sel;
+            avatarBg  = Theme.avatarColor(name);
+            setBackground(sel ? new Color(0xEEF2FF) : Color.WHITE);
+            return this;
         }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int circleSize = 30, x = 8, y = (getHeight() - circleSize) / 2;
+            g2.setColor(avatarBg);
+            g2.fillOval(x, y, circleSize, circleSize);
+
+            String initials = initials(name);
+            g2.setColor(Color.WHITE);
+            g2.setFont(AVATAR_FONT);
+            FontMetrics fm = g2.getFontMetrics();
+            g2.drawString(initials,
+                x + (circleSize - fm.stringWidth(initials)) / 2,
+                y + (circleSize + fm.getAscent() - fm.getDescent()) / 2);
+
+            g2.setFont(NAME_FONT);
+            g2.setColor(selected ? Theme.PRIMARY : Theme.TEXT_DARK);
+            fm = g2.getFontMetrics();
+            g2.drawString(name, x + circleSize + 8,
+                (getHeight() + fm.getAscent() - fm.getDescent()) / 2);
+            g2.dispose();
+        }
+
+        private static String initials(String n) {
+            if (n == null || n.isBlank()) return "?";
+            String[] p = n.trim().split("\\s+");
+            return (p.length == 1
+                ? p[0].substring(0, Math.min(2, p[0].length()))
+                : "" + p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+        }
+
+        @Override public Dimension getPreferredSize() { return new Dimension(200, 42); }
     }
 
     public void refresh() {
-        model.setRowCount(0);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        for (Employee e : empDAO.getAll()) {
-            model.addRow(new Object[]{
-                e.getEmpId(), e.getName(), e.getDesignation(), e.getEmail(),
-                e.getPhone(), e.getJoinDate() != null ? sdf.format(e.getJoinDate()) : "",
-                e.getEmploymentType(), e.getDeptId()
-            });
+        new SwingWorker<List<Employee>, Void>() {
+            @Override protected List<Employee> doInBackground() { return empDAO.getAll(); }
+            @Override protected void done() {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    List<Employee> employees = get();
+                    Object[][] rows = new Object[employees.size()][COLS.length];
+                    for (int i = 0; i < employees.size(); i++) {
+                        Employee e = employees.get(i);
+                        rows[i] = new Object[]{
+                            e.getEmpId(), e.getName(), e.getDesignation(), e.getEmail(),
+                            e.getPhone(), e.getJoinDate() != null ? sdf.format(e.getJoinDate()) : "",
+                            e.getEmploymentType(), e.getDeptId()
+                        };
+                    }
+                    model.setDataVector(rows, COLS);
+                    configureTableColumns();
+                } catch (Exception ex) { ex.printStackTrace(); }
+            }
+        }.execute();
+    }
+
+    private void configureTableColumns() {
+        if (table.getColumnCount() != COL_WIDTHS.length) return;
+        table.getColumnModel().getColumn(1).setCellRenderer(new AvatarNameRenderer());
+        for (int col = 0; col < COL_WIDTHS.length; col++) {
+            TableColumn column = table.getColumnModel().getColumn(col);
+            column.setPreferredWidth(COL_WIDTHS[col]);
         }
     }
 
@@ -145,32 +207,35 @@ public class EmployeePanel extends JPanel {
     }
 
     private void filterTable(String query) {
-        model.setRowCount(0);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         String q = query.toLowerCase();
-        for (Employee e : empDAO.getAll()) {
-            if (e.getName().toLowerCase().contains(q)
-                    || e.getEmpId().toLowerCase().contains(q)
-                    || e.getEmail().toLowerCase().contains(q)) {
-                model.addRow(new Object[]{
-                    e.getEmpId(), e.getName(), e.getDesignation(), e.getEmail(),
-                    e.getPhone(), e.getJoinDate() != null ? sdf.format(e.getJoinDate()) : "",
-                    e.getEmploymentType(), e.getDeptId()
-                });
-            }
+        if (q.isEmpty()) {
+            sorter.setRowFilter(null);
+            return;
         }
+        sorter.setRowFilter(new RowFilter<DefaultTableModel, Integer>() {
+            @Override
+            public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> entry) {
+                for (int i = 0; i < entry.getValueCount(); i++) {
+                    Object value = entry.getValue(i);
+                    if (value != null && value.toString().toLowerCase().contains(q)) return true;
+                }
+                return false;
+            }
+        });
     }
 
     private void editSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select an employee to edit.", "Warning", JOptionPane.WARNING_MESSAGE); return; }
-        showForm(empDAO.getById((String) model.getValueAt(row, 0)));
+        int modelRow = table.convertRowIndexToModel(row);
+        showForm(empDAO.getById((String) model.getValueAt(modelRow, 0)));
     }
 
     private void deleteSelected() {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select an employee to delete.", "Warning", JOptionPane.WARNING_MESSAGE); return; }
-        String id = (String) model.getValueAt(row, 0);
+        int modelRow = table.convertRowIndexToModel(row);
+        String id = (String) model.getValueAt(modelRow, 0);
         int confirm = JOptionPane.showConfirmDialog(this, "Delete employee " + id + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             if (empDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Employee deleted successfully."); notifyDataChanged(); }
@@ -181,12 +246,13 @@ public class EmployeePanel extends JPanel {
     private void showForm(Employee existing) {
         JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
             existing == null ? "New Employee Entry" : "Edit Employee", true);
-        dlg.setSize(500, 540);
-        dlg.setLocationRelativeTo(this);
+        dlg.setMinimumSize(new Dimension(580, 640));
 
         JPanel p = new JPanel(new GridBagLayout());
         p.setBackground(Color.WHITE);
-        p.setBorder(new EmptyBorder(24, 28, 24, 28));
+        p.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(Theme.PRIMARY, 3, true),
+            new EmptyBorder(30, 36, 30, 36)));
         GridBagConstraints gc = new GridBagConstraints();
         gc.fill = GridBagConstraints.HORIZONTAL;
         gc.insets = new Insets(6, 4, 6, 4);
@@ -255,7 +321,8 @@ public class EmployeePanel extends JPanel {
         notePanel.setBorder(BorderFactory.createCompoundBorder(
             new LineBorder(new Color(0xBFDBFE), 1, true),
             new EmptyBorder(8, 10, 8, 10)));
-        JLabel note = new JLabel("<html><b>Data Compliance</b><br>Profile will be subject to automatic validation against the UPMS SQL unique key constraints for Email and Employee ID.</html>");
+        JLabel note = new JLabel("<html><body style='width: 430px'><b>Data Compliance</b><br>"
+            + "Profile will be subject to automatic validation against the UPMS SQL unique key constraints for Email and Employee ID.</body></html>");
         note.setFont(Theme.FONT_SMALL);
         note.setForeground(new Color(0x1E40AF));
         notePanel.add(note);
@@ -283,7 +350,8 @@ public class EmployeePanel extends JPanel {
                 Employee emp = new Employee();
                 emp.setEmpId(empId); emp.setName(name); emp.setDesignation(designF.getText().trim());
                 emp.setEmail(email); emp.setPhone(phoneF.getText().trim());
-                emp.setJoinDate(new SimpleDateFormat("yyyy-MM-dd").parse(dateF.getText().trim()));
+                String joinDate = dateF.getText().trim();
+                emp.setJoinDate(joinDate.isEmpty() ? null : new SimpleDateFormat("yyyy-MM-dd").parse(joinDate));
                 emp.setEmploymentType((String) typeC.getSelectedItem());
                 emp.setDeptId(deptIds[deptC.getSelectedIndex()]);
 
@@ -299,7 +367,13 @@ public class EmployeePanel extends JPanel {
         });
         cancel.addActionListener(e -> dlg.dispose());
 
-        dlg.setContentPane(new JScrollPane(p));
+        JScrollPane formScroll = new JScrollPane(p);
+        formScroll.setBorder(BorderFactory.createEmptyBorder());
+        formScroll.setPreferredSize(new Dimension(580, 640));
+        formScroll.getVerticalScrollBar().setUnitIncrement(16);
+        dlg.setContentPane(formScroll);
+        dlg.pack();
+        dlg.setLocationRelativeTo(this);
         dlg.setVisible(true);
     }
 }

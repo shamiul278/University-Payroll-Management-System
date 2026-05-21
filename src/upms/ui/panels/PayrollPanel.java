@@ -43,6 +43,11 @@ public class PayrollPanel extends JPanel {
         JButton viewBtn   = Theme.primaryButton("👁 View Details");
         JButton delBtn    = Theme.dangerButton("🗑 Delete");
 
+        genBtn.setText("Process New Payroll");
+        statusBtn.setText("Update Status");
+        viewBtn.setText("View Details");
+        delBtn.setText("Delete");
+
         genBtn.addActionListener(e -> generatePayroll());
         statusBtn.addActionListener(e -> updateStatus());
         viewBtn.addActionListener(e -> viewDetails());
@@ -103,6 +108,10 @@ public class PayrollPanel extends JPanel {
     private void notifyDataChanged() {
         refresh();
         dataChangeListener.run();
+    }
+
+    public void processNewPayroll() {
+        generatePayroll();
     }
 
     private void generatePayroll() {

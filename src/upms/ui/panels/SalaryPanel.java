@@ -152,6 +152,8 @@ public class SalaryPanel extends JPanel {
 
         // Set initial ID
         idF.setText(salDAO.nextId());
+        empC.addActionListener(e -> loadSalaryForSelectedEmployee());
+        loadSalaryForSelectedEmployee();
         return card;
     }
 
@@ -238,7 +240,7 @@ public class SalaryPanel extends JPanel {
                 "ACTIVE"
             });
         }
-        if (idF != null) { idF.setText(salDAO.nextId()); editingRecord = null; }
+        if (idF != null) loadSalaryForSelectedEmployee();
     }
 
     public void setDataChangeListener(Runnable listener) {
@@ -262,12 +264,15 @@ public class SalaryPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Salary values cannot be negative.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            Salary s = new Salary(idF.getText().trim(), basic, allow, empIds[empC.getSelectedIndex()]);
-            boolean ok = editingRecord == null ? salDAO.insert(s) : salDAO.update(s);
+            String empId = empIds[empC.getSelectedIndex()];
+            Salary current = salDAO.getByEmpId(empId);
+            Salary s = new Salary(current != null ? current.getSalaryId() : idF.getText().trim(), basic, allow, empId);
+            boolean updating = editingRecord != null || current != null;
+            boolean ok = updating ? salDAO.update(s) : salDAO.insert(s);
             if (ok) {
-                JOptionPane.showMessageDialog(this, editingRecord == null ? "Salary configured successfully." : "Salary updated successfully.");
+                JOptionPane.showMessageDialog(this, updating ? "Salary updated successfully." : "Salary configured successfully.");
                 notifyDataChanged();
-            } else JOptionPane.showMessageDialog(this, "Unable to save salary record.", "Error", JOptionPane.ERROR_MESSAGE);
+            } else JOptionPane.showMessageDialog(this, salDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Enter valid numeric values for salary fields.", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -297,7 +302,24 @@ public class SalaryPanel extends JPanel {
         if (payrollCount > 0) msg += "\n" + payrollCount + " payroll record(s) may be affected.";
         if (JOptionPane.showConfirmDialog(this, msg, "Confirm Remove", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
             if (salDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Salary record removed."); notifyDataChanged(); }
-            else JOptionPane.showMessageDialog(this, "Unable to remove salary record.", "Error", JOptionPane.ERROR_MESSAGE);
+            else JOptionPane.showMessageDialog(this, salDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void loadSalaryForSelectedEmployee() {
+        if (empC == null || idF == null || basicF == null || allowF == null || empIds == null || empIds.length == 0) return;
+
+        Salary existing = salDAO.getByEmpId(empIds[empC.getSelectedIndex()]);
+        editingRecord = existing;
+        if (existing != null) {
+            idF.setText(existing.getSalaryId());
+            basicF.setText(String.format("%.2f", existing.getBasicSalary()));
+            allowF.setText(String.format("%.2f", existing.getAllowance()));
+        } else {
+            idF.setText(salDAO.nextId());
+            basicF.setText("0.00");
+            allowF.setText("0.00");
+        }
+        empC.setEnabled(true);
     }
 }

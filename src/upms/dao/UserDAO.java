@@ -20,12 +20,12 @@ public class UserDAO {
 
     private void setLastError(SQLException e, String action) {
         String message = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-        if (e.getErrorCode() == 1062) {
+        if (e.getErrorCode() == 1 || e.getErrorCode() == 1062) {
             if (message.contains("username")) lastErrorMessage = "Unable to " + action + " user because this username is already used.";
             else lastErrorMessage = "Unable to " + action + " user because this user ID already exists.";
-        } else if (e.getErrorCode() == 1452) {
+        } else if (e.getErrorCode() == 2291 || e.getErrorCode() == 1452) {
             lastErrorMessage = "Unable to " + action + " user because the selected employee does not exist.";
-        } else if (e.getErrorCode() == 1048) {
+        } else if (e.getErrorCode() == 1400 || e.getErrorCode() == 1048) {
             lastErrorMessage = "Unable to " + action + " user because a required field is empty.";
         } else {
             lastErrorMessage = "Unable to " + action + " user. Database error: " + e.getMessage();

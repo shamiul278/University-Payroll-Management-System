@@ -22,14 +22,14 @@ public class EmployeeDAO {
         int code = ex.getErrorCode();
         String message = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
 
-        if (code == 1062) {
+        if (code == 1 || code == 1062) {
             if (message.contains("email")) lastErrorMessage = "Unable to " + action + " employee because this email is already used.";
             else lastErrorMessage = "Unable to " + action + " employee because this employee ID already exists.";
-        } else if (code == 1452) {
+        } else if (code == 2291 || code == 1452) {
             lastErrorMessage = "Unable to " + action + " employee because the selected department does not exist.";
-        } else if (code == 1406) {
+        } else if (code == 12899 || code == 1406) {
             lastErrorMessage = "Unable to " + action + " employee because one field is longer than the database limit.";
-        } else if (code == 1048) {
+        } else if (code == 1400 || code == 1048) {
             lastErrorMessage = "Unable to " + action + " employee because a required field is empty.";
         } else {
             lastErrorMessage = "Unable to " + action + " employee. Database error: " + ex.getMessage();
@@ -85,7 +85,8 @@ public class EmployeeDAO {
             ps.setString(1, e.getEmpId()); ps.setString(2, e.getName());
             ps.setString(3, e.getDesignation()); ps.setString(4, e.getEmail());
             ps.setString(5, e.getPhone());
-            ps.setDate(6, new java.sql.Date(e.getJoinDate().getTime()));
+            if (e.getJoinDate() == null) ps.setNull(6, Types.DATE);
+            else ps.setDate(6, new java.sql.Date(e.getJoinDate().getTime()));
             ps.setString(7, e.getEmploymentType()); ps.setString(8, e.getDeptId());
             ps.executeUpdate();
             return true;
@@ -102,7 +103,8 @@ public class EmployeeDAO {
                 "UPDATE Employee SET name=?,designation=?,email=?,phone=?,join_date=?,employment_type=?,dept_id=? WHERE emp_id=?");
             ps.setString(1, e.getName()); ps.setString(2, e.getDesignation());
             ps.setString(3, e.getEmail()); ps.setString(4, e.getPhone());
-            ps.setDate(5, new java.sql.Date(e.getJoinDate().getTime()));
+            if (e.getJoinDate() == null) ps.setNull(5, Types.DATE);
+            else ps.setDate(5, new java.sql.Date(e.getJoinDate().getTime()));
             ps.setString(6, e.getEmploymentType()); ps.setString(7, e.getDeptId());
             ps.setString(8, e.getEmpId());
             int rows = ps.executeUpdate();
