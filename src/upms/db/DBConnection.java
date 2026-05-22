@@ -22,6 +22,7 @@ public class DBConnection {
             System.err.println("Oracle JDBC Driver not found. Add ojdbc14.jar to the lib folder.");
         }
         Runtime.getRuntime().addShutdownHook(new Thread(DBConnection::closeIdleConnections));
+        testConnection();
     }
 
     public static Connection getConnection() throws SQLException {

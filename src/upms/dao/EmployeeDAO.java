@@ -7,6 +7,7 @@ import java.util.*;
 
 public class EmployeeDAO {
     private String lastErrorMessage = "";
+    private static final int DELETE_TIMEOUT_SECONDS = 15;
 
     public String getLastErrorMessage() {
         return lastErrorMessage == null || lastErrorMessage.isEmpty()
@@ -31,6 +32,8 @@ public class EmployeeDAO {
             lastErrorMessage = "Unable to " + action + " employee because one field is longer than the database limit.";
         } else if (code == 1400 || code == 1048) {
             lastErrorMessage = "Unable to " + action + " employee because a required field is empty.";
+        } else if (code == 54 || code == 30006 || message.contains("timeout")) {
+            lastErrorMessage = "Unable to " + action + " employee because related records are locked by another database session. Try again after closing other open edit windows or committing pending SQL changes.";
         } else {
             lastErrorMessage = "Unable to " + action + " employee. Database error: " + ex.getMessage();
         }
@@ -118,12 +121,45 @@ public class EmployeeDAO {
     public boolean delete(String id) {
         Connection c = null; PreparedStatement ps = null;
         try {
+            clearLastError();
             c = DBConnection.getConnection();
+            c.setAutoCommit(false);
+
+            executeEmployeeCleanup(c, "UPDATE Payroll SET emp_id=NULL WHERE emp_id=?", id);
+            executeEmployeeCleanup(c, "UPDATE Users SET emp_id=NULL WHERE emp_id=?", id);
+            executeEmployeeCleanup(c, "DELETE FROM Attendance WHERE emp_id=?", id);
+            executeEmployeeCleanup(c, "DELETE FROM Salary WHERE emp_id=?", id);
+
             ps = c.prepareStatement("DELETE FROM Employee WHERE emp_id=?");
-            ps.setString(1, id); ps.executeUpdate();
+            ps.setQueryTimeout(DELETE_TIMEOUT_SECONDS);
+            ps.setString(1, id);
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                c.rollback();
+                lastErrorMessage = "Unable to delete employee because the employee record was not found.";
+                return false;
+            }
+            c.commit();
             return true;
-        } catch (SQLException e) { e.printStackTrace(); return false; }
+        } catch (SQLException e) {
+            try { if (c != null) c.rollback(); } catch (SQLException rollbackError) { rollbackError.printStackTrace(); }
+            setLastError(e, "delete");
+            e.printStackTrace();
+            return false;
+        }
         finally { DBConnection.close(c, ps); }
+    }
+
+    private void executeEmployeeCleanup(Connection c, String sql, String empId) throws SQLException {
+        PreparedStatement ps = null;
+        try {
+            ps = c.prepareStatement(sql);
+            ps.setQueryTimeout(DELETE_TIMEOUT_SECONDS);
+            ps.setString(1, empId);
+            ps.executeUpdate();
+        } finally {
+            if (ps != null) ps.close();
+        }
     }
 
     public String nextId() {

@@ -12,6 +12,7 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class EmployeePanel extends JPanel {
     private final EmployeeDAO empDAO = new EmployeeDAO();
@@ -53,7 +54,7 @@ public class EmployeePanel extends JPanel {
         editBtn.setBackground(new Color(0x744210));
         addBtn.addActionListener(e -> showForm(null));
         editBtn.addActionListener(e -> editSelected());
-        delBtn.addActionListener(e -> deleteSelected());
+        delBtn.addActionListener(e -> deleteSelected(delBtn));
         btnPanel.add(addBtn);
         btnPanel.add(editBtn);
         btnPanel.add(delBtn);
@@ -231,15 +232,47 @@ public class EmployeePanel extends JPanel {
         showForm(empDAO.getById((String) model.getValueAt(modelRow, 0)));
     }
 
-    private void deleteSelected() {
+    private void deleteSelected(JButton deleteButton) {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Select an employee to delete.", "Warning", JOptionPane.WARNING_MESSAGE); return; }
         int modelRow = table.convertRowIndexToModel(row);
         String id = (String) model.getValueAt(modelRow, 0);
-        int confirm = JOptionPane.showConfirmDialog(this, "Delete employee " + id + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        String message = "Delete employee " + id + "?\n"
+            + "Attendance and salary records for this employee will be removed.\n"
+            + "Payroll and user records will be kept, but unlinked from this employee.";
+        int confirm = JOptionPane.showConfirmDialog(this, message, "Confirm Delete", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
-            if (empDAO.delete(id)) { JOptionPane.showMessageDialog(this, "Employee deleted successfully."); notifyDataChanged(); }
-            else JOptionPane.showMessageDialog(this, "Cannot delete this employee because related records exist.", "Error", JOptionPane.ERROR_MESSAGE);
+            deleteButton.setEnabled(false);
+            table.setEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+            new SwingWorker<Boolean, Void>() {
+                @Override protected Boolean doInBackground() {
+                    return empDAO.delete(id);
+                }
+
+                @Override protected void done() {
+                    deleteButton.setEnabled(true);
+                    table.setEnabled(true);
+                    setCursor(Cursor.getDefaultCursor());
+                    try {
+                        if (get()) {
+                            JOptionPane.showMessageDialog(EmployeePanel.this, "Employee deleted successfully.");
+                            notifyDataChanged();
+                        } else {
+                            JOptionPane.showMessageDialog(EmployeePanel.this,
+                                empDAO.getLastErrorMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                        JOptionPane.showMessageDialog(EmployeePanel.this,
+                            "Employee delete was interrupted.", "Error", JOptionPane.ERROR_MESSAGE);
+                    } catch (ExecutionException ex) {
+                        JOptionPane.showMessageDialog(EmployeePanel.this,
+                            "Unable to delete employee: " + ex.getCause().getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
         }
     }
 
